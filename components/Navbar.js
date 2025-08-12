@@ -130,23 +130,21 @@ export default function Navbar() {
                 >
                   Profil
                 </Link>
-                <button 
+                <span 
                   onClick={handleLogout} 
                   style={{
-                    backgroundColor: '#f3f4f6',
-                    color: '#374151',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
+                    color: '#6b7280',
                     fontWeight: '500',
-                    border: 'none',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s',
                     cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    fontSize: '16px'
                   }}
-                  onMouseOver={(e) => e.target.style.backgroundColor = '#e5e7eb'}
-                  onMouseOut={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                  onMouseOver={(e) => e.target.style.color = '#111827'}
+                  onMouseOut={(e) => e.target.style.color = '#6b7280'}
                 >
-                  Ieșire
-                </button>
+                  Deconectare
+                </span>
               </>
             ) : (
               <>
@@ -309,25 +307,28 @@ export default function Navbar() {
                   >
                     Profil
                   </Link>
-                  <button 
+                  <span 
                     onClick={handleLogout} 
                     style={{
                       display: 'block',
-                      width: '100%',
-                      textAlign: 'left',
                       padding: '8px 16px',
-                      color: '#ef4444',
-                      backgroundColor: 'transparent',
-                      border: 'none',
+                      color: '#6b7280',
                       borderRadius: '8px',
                       cursor: 'pointer',
-                      transition: 'background-color 0.2s'
+                      transition: 'all 0.2s',
+                      fontSize: '16px'
                     }}
-                    onMouseOver={(e) => e.target.style.backgroundColor = '#fef2f2'}
-                    onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                    onMouseOver={(e) => {
+                      e.target.style.color = '#111827'
+                      e.target.style.backgroundColor = '#f3f4f6'
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.color = '#6b7280'
+                      e.target.style.backgroundColor = 'transparent'
+                    }}
                   >
                     Deconectare
-                  </button>
+                  </span>
                 </>
               ) : (
                 <>

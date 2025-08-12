@@ -145,21 +145,41 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
             </div>
           )}
 
-          {supplier.categories && (
-            <div style={{
-              position: 'absolute',
-              top: '12px',
-              left: '12px',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              fontWeight: '600'
-            }}>
-              {supplier.categories.name}
-            </div>
-          )}
+          {supplier.categories && supplier.categories.length > 0 && (
+  <div style={{
+    position: 'absolute',
+    top: '12px',
+    left: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  }}>
+    {supplier.categories.slice(0, 2).map((category, index) => (
+      <div key={category.id || index} style={{
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        color: 'white',
+        padding: '4px 8px',
+        borderRadius: '12px',
+        fontSize: '11px',
+        fontWeight: '600'
+      }}>
+        {category.name}
+      </div>
+    ))}
+    {supplier.categories.length > 2 && (
+      <div style={{
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        color: 'white',
+        padding: '4px 8px',
+        borderRadius: '12px',
+        fontSize: '11px',
+        fontWeight: '600'
+      }}>
+        +{supplier.categories.length - 2} mai multe
+      </div>
+    )}
+  </div>
+)}
 
           {/* Gallery indicator */}
           {hasGallery && (

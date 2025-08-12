@@ -39,29 +39,58 @@ export default function Home() {
   }
 
   async function fetchSuppliers() {
-    let query = supabase
-      .from('suppliers')
-      .select(`
-        *,
-        categories (name)
-      `)
-      .order('created_at', { ascending: false })
+  let query = supabase
+    .from('suppliers')
+    .select(`
+      *,
+      supplier_categories (
+        categories (
+          id,
+          name
+        )
+      )
+    `)
+    .order('created_at', { ascending: false })
+  
+  if (selectedCategory) {
+    // Filtrează după categoria selectată
+    const { data: supplierIds } = await supabase
+      .from('supplier_categories')
+      .select('supplier_id')
+      .eq('category_id', selectedCategory)
     
-    if (selectedCategory) {
-      query = query.eq('category_id', selectedCategory)
+    if (supplierIds && supplierIds.length > 0) {
+      const ids = supplierIds.map(item => item.supplier_id)
+      query = query.in('id', ids)
+    } else {
+      // Nu există furnizori pentru această categorie
+      setSuppliers([])
+      return
     }
-
-    const { data } = await query
-    setSuppliers(data || [])
   }
+
+  const { data } = await query
+  
+  // Procesează datele pentru a grupa categoriile
+  const processedSuppliers = data?.map(supplier => ({
+    ...supplier,
+    categories: supplier.supplier_categories?.map(sc => sc.categories) || []
+  })) || []
+
+  setSuppliers(processedSuppliers)
+}
 
   const categoryIcons = {
-    'Localuri': '🏛️',
-    'Fotografi': '📸',
-    'Formații Muzicale': '🎵',
-    'Decoratori': '🎨',
-    'Catering': '🍽️'
-  }
+  'Locații': '🏛️',
+  'Muzică': '🎵',
+  'Fotografie': '📸',
+  'Videografie': '🎬',
+  'Flori': '🌸',
+  'Decorațiuni': '🎨',
+  'Torturi și prăjituri': '🍰',
+  'Catering și băuturi': '🍽️',
+  'Alte servicii': '⭐'
+}
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'white', fontFamily: 'Inter, system-ui, sans-serif' }}>
