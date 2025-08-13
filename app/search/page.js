@@ -310,7 +310,7 @@ export default function Search() {
                         day: 'numeric'
                       })}
                       {selectedCategory && categories.find(c => c.id == selectedCategory) && (
-                        <span> în categoria "{categories.find(c => c.id == selectedCategory).name}"</span>
+                        <span> în categoria '{categories.find(c => c.id == selectedCategory).name}'</span>
                       )}
                     </p>
                   </div>
