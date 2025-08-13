@@ -164,15 +164,15 @@ export default function Dashboard() {
       paddingTop: '64px',
       fontFamily: 'Inter, system-ui, sans-serif'
     }}>
-      <div style={{
+      <div className="dashboard-container" style={{
         maxWidth: '1200px',
         margin: '0 auto',
-        padding: '40px 16px'
+        padding: '20px 16px'
       }}>
         {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
+        <div className="dashboard-header" style={{ marginBottom: '24px' }}>
           <h1 className="dashboard-title" style={{
-            fontSize: '2rem',
+            fontSize: '1.75rem',
             fontWeight: '800',
             color: '#111827',
             marginBottom: '8px',
@@ -180,7 +180,7 @@ export default function Dashboard() {
           }}>
             Dashboard
           </h1>
-          <p style={{
+          <p className="dashboard-subtitle" style={{
             fontSize: '1rem',
             color: '#6b7280',
             margin: 0
@@ -193,7 +193,7 @@ export default function Dashboard() {
         <div className="dashboard-grid" style={{
           display: 'grid',
           gridTemplateColumns: '1fr',
-          gap: '20px'
+          gap: '16px'
         }}>
           
           {/* Account Info */}
@@ -893,37 +893,85 @@ export default function Dashboard() {
         }
         
         /* Mobile-first responsive design */
+        .dashboard-container {
+          padding: 20px 16px !important;
+        }
+        
+        .dashboard-header {
+          margin-bottom: 20px !important;
+        }
+        
         .dashboard-title {
-          font-size: 2rem !important;
+          font-size: 1.5rem !important;
+        }
+        
+        .dashboard-subtitle {
+          font-size: 0.875rem !important;
         }
         
         .dashboard-grid {
           grid-template-columns: 1fr !important;
-          gap: 20px !important;
+          gap: 16px !important;
         }
         
         .stats-grid {
           grid-template-columns: repeat(2, 1fr) !important;
-          gap: 12px !important;
+          gap: 8px !important;
         }
         
         /* Tablet breakpoint */
-        @media (min-width: 768px) {
+        @media (min-width: 640px) {
+          .dashboard-container {
+            padding: 30px 20px !important;
+          }
+          
+          .dashboard-header {
+            margin-bottom: 28px !important;
+          }
+          
           .dashboard-title {
-            font-size: 2.5rem !important;
+            font-size: 2rem !important;
+          }
+          
+          .dashboard-subtitle {
+            font-size: 1rem !important;
           }
           
           .dashboard-grid {
             grid-template-columns: repeat(2, 1fr) !important;
-            gap: 24px !important;
+            gap: 20px !important;
+          }
+          
+          .stats-grid {
+            gap: 10px !important;
           }
         }
         
         /* Desktop breakpoint */
         @media (min-width: 1024px) {
+          .dashboard-container {
+            padding: 40px 20px !important;
+          }
+          
+          .dashboard-header {
+            margin-bottom: 32px !important;
+          }
+          
+          .dashboard-title {
+            font-size: 2.5rem !important;
+          }
+          
+          .dashboard-subtitle {
+            font-size: 1.125rem !important;
+          }
+          
           .dashboard-grid {
             grid-template-columns: repeat(3, 1fr) !important;
             gap: 24px !important;
+          }
+          
+          .stats-grid {
+            gap: 12px !important;
           }
         }
       `}</style>
