@@ -81,15 +81,51 @@ export default function Home() {
 }
 
   const categoryIcons = {
-  'Locații': '🏛️',
-  'Muzică': '🎵',
-  'Fotografie': '📸',
-  'Videografie': '🎬',
-  'Flori': '🌸',
-  'Decorațiuni': '🎨',
-  'Torturi și prăjituri': '🍰',
-  'Catering și băuturi': '🍽️',
-  'Alte servicii': '⭐'
+  'Locații': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+    </svg>
+  ),
+  'Muzică': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+    </svg>
+  ),
+  'Fotografie': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+    </svg>
+  ),
+  'Videografie': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+    </svg>
+  ),
+  'Flori': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M8.66 13.07c.15 0 .29-.01.29-.16 0-.06-.04-.11-.09-.15-.97-.87-1.58-2.14-1.58-3.54 0-2.63 2.13-4.76 4.76-4.76s4.76 2.13 4.76 4.76c0 1.4-.61 2.67-1.58 3.54-.05.04-.09.09-.09.15 0 .15.14.16.29.16.22 0 .42-.06.61-.16 1.23-.69 2.07-1.99 2.07-3.53 0-2.21-1.79-4-4-4s-4 1.79-4 4c0 1.54.84 2.84 2.07 3.53.19.1.39.16.61.16z"/>
+    </svg>
+  ),
+  'Decorațiuni': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  ),
+  'Torturi și prăjituri': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 6c1.11 0 2-.9 2-2 0-.38-.1-.73-.29-1.03L12 0l-1.71 2.97c-.19.3-.29.65-.29 1.03 0 1.1.9 2 2 2zm4.6 9.99l-1.07-1.07-1.08 1.07c-1.3 1.3-3.58 1.31-4.89 0l-1.07-1.07-1.09 1.07C6.75 16.64 5.88 17 4.96 17c-.73 0-1.4-.23-1.96-.61V21c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-4.61c-.56.38-1.23.61-1.96.61-.92 0-1.79-.36-2.44-1.01zM18 9H6l-1.5 6h15L18 9z"/>
+    </svg>
+  ),
+  'Catering și băuturi': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M8.1 13.34l2.83-2.83L3.91 3.5c-.78-.78-.78-2.05 0-2.83.78-.78 2.05-.78 2.83 0l7.01 7.01 2.83-2.83c.78-.78 2.05-.78 2.83 0 .78.78.78 2.05 0 2.83L16.17 11l5.75 5.75c.78.78.78 2.05 0 2.83-.78.78-2.05.78-2.83 0L16 16.49V21c0 .55-.45 1-1 1s-1-.45-1-1v-4.51L8.1 10.6c-.78-.78-.78-2.05 0-2.83.78-.78 2.05-.78 2.83 0z"/>
+    </svg>
+  ),
+  'Alte servicii': (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  )
 }
 
   return (
@@ -266,13 +302,15 @@ export default function Home() {
                 }
               }}
             >
-              <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>✨</div>
+              <div style={{ marginBottom: '8px', color: '#2563eb' }}>✨</div>
               <div style={{ fontSize: '12px', fontWeight: '600' }}>Toate</div>
               <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px' }}>{suppliers.length}</div>
             </button>
 
             {categories.map(category => {
-              const count = suppliers.filter(s => s.category_id === category.id).length
+              const count = suppliers.filter(s => 
+  s.categories && s.categories.some(cat => cat.id === category.id)
+).length
               const isSelected = selectedCategory === category.id
               return (
                 <button
@@ -303,7 +341,13 @@ export default function Home() {
                     }
                   }}
                 >
-                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{categoryIcons[category.name] || '🎉'}</div>
+                  <div style={{ marginBottom: '8px', color: isSelected ? '#1d4ed8' : '#6b7280' }}>
+  {categoryIcons[category.name] || (
+    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  )}
+</div>
                   <div style={{ fontSize: '12px', fontWeight: '600' }}>{category.name}</div>
                   <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px' }}>{count}</div>
                 </button>

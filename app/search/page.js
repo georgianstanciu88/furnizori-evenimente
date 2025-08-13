@@ -42,35 +42,77 @@ export default function Search() {
     setLoading(true)
     setHasSearched(true)
 
-    // Get all suppliers
-    let query = supabase
-      .from('suppliers')
-      .select(`
-        *,
-        categories (name)
-      `)
+    try {
+      // Step 1: Get all suppliers with their categories
+      let suppliersQuery = supabase
+        .from('suppliers')
+        .select(`
+          *,
+          supplier_categories (
+            categories (
+              id,
+              name
+            )
+          )
+        `)
 
-    if (selectedCategory) {
-      query = query.eq('category_id', selectedCategory)
+      // Step 2: If category is selected, filter by it
+      if (selectedCategory) {
+        // Get supplier IDs that have the selected category
+        const { data: supplierIdsData } = await supabase
+          .from('supplier_categories')
+          .select('supplier_id')
+          .eq('category_id', selectedCategory)
+
+        if (supplierIdsData && supplierIdsData.length > 0) {
+          const supplierIds = supplierIdsData.map(item => item.supplier_id)
+          suppliersQuery = suppliersQuery.in('id', supplierIds)
+        } else {
+          // No suppliers found for this category
+          setAvailableSuppliers([])
+          setLoading(false)
+          return
+        }
+      }
+
+      const { data: allSuppliers, error: suppliersError } = await suppliersQuery
+
+      if (suppliersError) {
+        console.error('Error fetching suppliers:', suppliersError)
+        setAvailableSuppliers([])
+        setLoading(false)
+        return
+      }
+
+      // Step 3: Get unavailable supplier IDs for the selected date
+      const { data: unavailableData } = await supabase
+        .from('unavailable_dates')
+        .select('supplier_id')
+        .eq('date', selectedDate)
+
+      const unavailableSupplierIds = unavailableData ? unavailableData.map(u => u.supplier_id) : []
+
+      // Step 4: Filter out unavailable suppliers
+      const availableSuppliers = allSuppliers ? allSuppliers.filter(supplier => 
+        !unavailableSupplierIds.includes(supplier.id)
+      ) : []
+
+      // Step 5: Process suppliers data to include categories properly
+      const processedSuppliers = availableSuppliers.map(supplier => ({
+        ...supplier,
+        categories: supplier.supplier_categories?.map(sc => sc.categories) || []
+      }))
+
+      console.log('Found suppliers:', processedSuppliers.length)
+      console.log('Unavailable suppliers for date:', unavailableSupplierIds.length)
+      
+      setAvailableSuppliers(processedSuppliers)
+    } catch (error) {
+      console.error('Error in searchSuppliers:', error)
+      setAvailableSuppliers([])
+    } finally {
+      setLoading(false)
     }
-
-    const { data: suppliers } = await query
-
-    // Get unavailable dates for selected date
-    const { data: unavailable } = await supabase
-      .from('unavailable_dates')
-      .select('supplier_id')
-      .eq('date', selectedDate)
-
-    const unavailableIds = unavailable ? unavailable.map(u => u.supplier_id) : []
-
-    // Filter available suppliers
-    const available = suppliers ? suppliers.filter(s => 
-      !unavailableIds.includes(s.id)
-    ) : []
-
-    setAvailableSuppliers(available)
-    setLoading(false)
   }
 
   return (
@@ -267,6 +309,9 @@ export default function Search() {
                         month: 'long',
                         day: 'numeric'
                       })}
+                      {selectedCategory && categories.find(c => c.id == selectedCategory) && (
+                        <span> în categoria "{categories.find(c => c.id == selectedCategory).name}"</span>
+                      )}
                     </p>
                   </div>
                   
@@ -305,31 +350,54 @@ export default function Search() {
                     margin: '0 auto 24px',
                     lineHeight: '1.6'
                   }}>
-                    Nu există furnizori liberi pentru această dată și categorie. 
-                    Încearcă o altă dată sau categorie.
+                    {selectedCategory 
+                      ? `Nu există furnizori disponibili pentru această dată în categoria selectată.`
+                      : `Nu există furnizori disponibili pentru data selectată.`
+                    }
                   </p>
-                  <button
-                    onClick={() => {
-                      setSelectedDate('')
-                      setSelectedCategory('')
-                      setAvailableSuppliers([])
-                      setHasSearched(false)
-                    }}
-                    style={{
-                      backgroundColor: '#2563eb',
-                      color: 'white',
-                      padding: '12px 24px',
-                      borderRadius: '12px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s'
-                    }}
-                    onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
-                    onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
-                  >
-                    Caută din nou
-                  </button>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedDate('')
+                        setAvailableSuppliers([])
+                        setHasSearched(false)
+                      }}
+                      style={{
+                        backgroundColor: '#2563eb',
+                        color: 'white',
+                        padding: '12px 24px',
+                        borderRadius: '12px',
+                        fontWeight: '600',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '1rem'
+                      }}
+                    >
+                      Alege altă dată
+                    </button>
+                    {selectedCategory && (
+                      <button
+                        onClick={() => {
+                          setSelectedCategory('')
+                          if (selectedDate) {
+                            searchSuppliers()
+                          }
+                        }}
+                        style={{
+                          backgroundColor: '#16a34a',
+                          color: 'white',
+                          padding: '12px 24px',
+                          borderRadius: '12px',
+                          fontWeight: '600',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '1rem'
+                        }}
+                      >
+                        Vezi toate categoriile
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </>
@@ -354,6 +422,27 @@ export default function Search() {
               }}>
                 Alege data evenimentului tău pentru a vedea furnizorii disponibili
               </p>
+            </div>
+          )}
+
+
+
+          
+          {/* Debug info - remove in production - avem NODE_ENV == development cand facem debug. daca schimbam in false ar trebui sa dispara */}
+          {hasSearched && process.env.NODE_ENV === 'false' && (
+            <div style={{
+              marginTop: '40px',
+              padding: '16px',
+              backgroundColor: '#f3f4f6',
+              borderRadius: '8px',
+              fontSize: '14px',
+              color: '#6b7280'
+            }}>
+              <strong>Debug Info:</strong><br />
+              Selected Date: {selectedDate}<br />
+              Selected Category: {selectedCategory || 'None'}<br />
+              Found Suppliers: {availableSuppliers.length}<br />
+              Has Searched: {hasSearched ? 'Yes' : 'No'}
             </div>
           )}
         </div>

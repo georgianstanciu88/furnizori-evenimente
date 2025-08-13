@@ -22,16 +22,19 @@ export default function Calendar({ unavailableDates = [], onDateClick }) {
   ).getDay()
   
   const isDateUnavailable = (day) => {
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
-    return unavailableDates.some(d => d.toDateString() === date.toDateString())
-  }
-  
-  const isPastDate = (day) => {
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return date < today
-  }
+  const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day, 12, 0, 0)
+  return unavailableDates.some(d => {
+    const compareDate = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0)
+    return compareDate.getTime() === date.getTime()
+  })
+}
+
+const isPastDate = (day) => {
+  const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day, 12, 0, 0)
+  const today = new Date()
+  const todayNormalized = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0)
+  return date < todayNormalized
+}
   
   const handlePrevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))
@@ -42,11 +45,12 @@ export default function Calendar({ unavailableDates = [], onDateClick }) {
   }
   
   const handleDateClick = (day) => {
-    if (!isPastDate(day) && onDateClick) {
-      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
-      onDateClick(date)
-    }
+  if (!isPastDate(day) && onDateClick) {
+    // Fixez timezone-ul pentru data corectă
+    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day, 12, 0, 0)
+    onDateClick(date)
   }
+}
   
   return (
     <div style={{

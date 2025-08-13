@@ -40,32 +40,50 @@ export default function SupplierProfile() {
   }
 
   async function fetchSupplier() {
-    const { data, error } = await supabase
-      .from('suppliers')
-      .select(`
-        *,
-        categories (name),
-        profiles (email)
-      `)
-      .eq('id', supplierId)
-      .single()
+    try {
+      // Fetch supplier with categories through junction table
+      const { data: supplierData, error: supplierError } = await supabase
+        .from('suppliers')
+        .select(`
+          *,
+          profiles (email),
+          supplier_categories (
+            categories (
+              id,
+              name
+            )
+          )
+        `)
+        .eq('id', supplierId)
+        .single()
 
-    if (error) {
-      console.error('Error fetching supplier:', error)
-      router.push('/404')
-      return
+      if (supplierError) {
+        console.error('Error fetching supplier:', supplierError)
+        router.push('/404')
+        return
+      }
+
+      // Process categories data
+      const processedSupplier = {
+        ...supplierData,
+        categories: supplierData.supplier_categories?.map(sc => sc.categories) || []
+      }
+
+      setSupplier(processedSupplier)
+
+      // Fetch unavailable dates
+      const { data: unavailableData } = await supabase
+        .from('unavailable_dates')
+        .select('date')
+        .eq('supplier_id', supplierId)
+
+      setUnavailableDates(unavailableData || [])
+    } catch (error) {
+      console.error('Error in fetchSupplier:', error)
+      router.push('/')
+    } finally {
+      setLoading(false)
     }
-
-    setSupplier(data)
-
-    // Fetch unavailable dates
-    const { data: unavailableData } = await supabase
-      .from('unavailable_dates')
-      .select('date')
-      .eq('supplier_id', supplierId)
-
-    setUnavailableDates(unavailableData || [])
-    setLoading(false)
   }
 
   const openGallery = (index = 0) => {
@@ -428,18 +446,30 @@ export default function SupplierProfile() {
                   {supplier.business_name}
                 </h1>
                 
-                {supplier.categories && (
+                {/* Categories */}
+                {supplier.categories && supplier.categories.length > 0 && (
                   <div style={{
-                    display: 'inline-block',
-                    padding: '6px 12px',
-                    backgroundColor: '#eff6ff',
-                    color: '#1d4ed8',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px',
                     marginBottom: '16px'
                   }}>
-                    {supplier.categories.name}
+                    {supplier.categories.map((category, index) => (
+                      <div
+                        key={category.id || index}
+                        style={{
+                          display: 'inline-block',
+                          padding: '6px 12px',
+                          backgroundColor: '#eff6ff',
+                          color: '#1d4ed8',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        {category.name}
+                      </div>
+                    ))}
                   </div>
                 )}
 

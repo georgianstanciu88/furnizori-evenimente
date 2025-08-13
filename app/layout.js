@@ -1,10 +1,13 @@
 import './globals.css'
 import Navbar from '@/components/Navbar'
 
+
+
 export const metadata = {
   title: 'EventPro - Furnizori Evenimente Premium',
   description: 'Găsește cei mai buni furnizori pentru evenimentul tău perfect',
 }
+
 
 export default function RootLayout({ children }) {
   return (

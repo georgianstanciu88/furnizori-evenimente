@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Calendar from '@/components/Calendar'
+import LocationPicker from '@/components/LocationPicker'
 
 export default function Profile() {
   const router = useRouter()
@@ -10,6 +11,7 @@ export default function Profile() {
   const [categories, setCategories] = useState([])
   const [selectedCategories, setSelectedCategories] = useState([])
   const [message, setMessage] = useState({ type: '', text: '' })
+  const [location, setLocation] = useState({ judet: '', localitate: '' })
   const [formData, setFormData] = useState({
     business_name: '',
     description: '',
@@ -24,6 +26,7 @@ export default function Profile() {
   const [pageLoading, setPageLoading] = useState(true)
   const [uploadingMain, setUploadingMain] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
+  const [supplierId, setSupplierId] = useState(null)
 
   useEffect(() => {
     checkUser()
@@ -60,15 +63,27 @@ export default function Profile() {
       .single()
 
     if (supplierData) {
-      setFormData({
-        ...supplierData,
-        gallery_images: supplierData.gallery_images || []
+  setFormData({
+    ...supplierData,
+    gallery_images: supplierData.gallery_images || []
+  })
+  setSupplierId(supplierData.id)
+  
+  // Parsez adresa existentă pentru a extrage județul și localitatea
+  if (supplierData.address) {
+    const addressParts = supplierData.address.split(', ')
+    if (addressParts.length === 2) {
+      setLocation({
+        localitate: addressParts[0],
+        judet: addressParts[1]
       })
-      
-      // Fetch supplier categories
-      await fetchSupplierCategories(supplierData.id)
-      await fetchUnavailableDates(supplierData.id)
     }
+  }
+  
+  // Fetch supplier categories
+  await fetchSupplierCategories(supplierData.id)
+  await fetchUnavailableDates(supplierData.id)
+}
 
     setPageLoading(false)
   }
@@ -97,8 +112,12 @@ export default function Profile() {
       .from('unavailable_dates')
       .select('*')
       .eq('supplier_id', supplierId)
+      .order('date')
 
-    setUnavailableDates(data ? data.map(d => new Date(d.date)) : [])
+    setUnavailableDates(data ? data.map(d => ({
+      ...d,
+      dateObj: new Date(d.date)
+    })) : [])
   }
 
   // Toggle category selection
@@ -112,7 +131,7 @@ export default function Profile() {
     })
   }
 
-  // Upload functions (același cod ca înainte)
+  // Upload main image
   async function uploadMainImage(file) {
     setUploadingMain(true)
     
@@ -136,6 +155,7 @@ export default function Profile() {
         .getPublicUrl(fileName)
 
       if (urlData?.publicUrl) {
+        // Delete old image if exists
         if (formData.image_url && formData.image_url.includes('supabase')) {
           const oldPath = formData.image_url.split('/').slice(-2).join('/')
           await supabase.storage.from('supplier-images').remove([oldPath])
@@ -150,11 +170,14 @@ export default function Profile() {
     }
     
     setUploadingMain(false)
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000)
   }
 
+  // Upload gallery images
   async function uploadGalleryImages(files) {
     if (formData.gallery_images.length + files.length > 7) {
       setMessage({ type: 'error', text: '❌ Poți avea maximum 7 imagini în galerie' })
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000)
       return
     }
 
@@ -197,8 +220,10 @@ export default function Profile() {
     }
     
     setUploadingGallery(false)
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000)
   }
 
+  // Remove gallery image
   async function removeGalleryImage(imageUrl, index) {
     try {
       if (imageUrl.includes('supabase')) {
@@ -213,15 +238,24 @@ export default function Profile() {
     } catch (error) {
       setMessage({ type: 'error', text: '❌ Eroare la ștergerea imaginii' })
     }
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000)
   }
 
+  // Handle form submit
   async function handleSubmit(e) {
     e.preventDefault()
     
     if (selectedCategories.length === 0) {
       setMessage({ type: 'error', text: '❌ Selectează cel puțin o categorie!' })
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000)
       return
     }
+
+    if (!location.judet || !location.localitate || location.localitate.trim() === '') {
+  setMessage({ type: 'error', text: '❌ Selectează județul și localitatea!' })
+  setTimeout(() => setMessage({ type: '', text: '' }), 5000)
+  return
+}
     
     setLoading(true)
     setMessage({ type: '', text: '' })
@@ -233,7 +267,7 @@ export default function Profile() {
         .eq('user_id', user.id)
         .single()
 
-      let supplierId
+      let currentSupplierId
 
       if (existingSupplier) {
         // Update supplier
@@ -243,7 +277,7 @@ export default function Profile() {
           .eq('id', existingSupplier.id)
 
         if (error) throw error
-        supplierId = existingSupplier.id
+        currentSupplierId = existingSupplier.id
       } else {
         // Insert new supplier
         const { data: newSupplier, error } = await supabase
@@ -253,7 +287,8 @@ export default function Profile() {
           .single()
 
         if (error) throw error
-        supplierId = newSupplier.id
+        currentSupplierId = newSupplier.id
+        setSupplierId(currentSupplierId)
       }
 
       // Update categories
@@ -261,12 +296,12 @@ export default function Profile() {
       await supabase
         .from('supplier_categories')
         .delete()
-        .eq('supplier_id', supplierId)
+        .eq('supplier_id', currentSupplierId)
 
       // Then, insert new categories
       if (selectedCategories.length > 0) {
         const categoryInserts = selectedCategories.map(categoryId => ({
-          supplier_id: supplierId,
+          supplier_id: currentSupplierId,
           category_id: categoryId
         }))
 
@@ -284,49 +319,75 @@ export default function Profile() {
     }
 
     setLoading(false)
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000)
   }
 
+  // Handle calendar date toggle
   async function toggleDate(date) {
-    const { data: supplier } = await supabase
-      .from('suppliers')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (!supplier) {
+    if (!supplierId) {
       setMessage({ type: 'error', text: '⚠️ Salvează mai întâi profilul!' })
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000)
       return
     }
 
     const dateStr = date.toISOString().split('T')[0]
-    const isUnavailable = unavailableDates.some(d => 
-      d.toDateString() === date.toDateString()
+    const existingDate = unavailableDates.find(d => 
+      d.dateObj.toDateString() === date.toDateString()
     )
 
-    if (isUnavailable) {
+    if (existingDate) {
+      // Remove date
       await supabase
         .from('unavailable_dates')
         .delete()
-        .eq('supplier_id', supplier.id)
-        .eq('date', dateStr)
+        .eq('id', existingDate.id)
 
-      setUnavailableDates(unavailableDates.filter(d => 
-        d.toDateString() !== date.toDateString()
-      ))
-      
+      setUnavailableDates(unavailableDates.filter(d => d.id !== existingDate.id))
       setMessage({ type: 'success', text: '✅ Data marcată ca disponibilă' })
     } else {
-      await supabase
+      // Add date
+      const { data, error } = await supabase
         .from('unavailable_dates')
         .insert([{
-          supplier_id: supplier.id,
+          supplier_id: supplierId,
           date: dateStr
         }])
+        .select()
+        .single()
 
-      setUnavailableDates([...unavailableDates, date])
-      setMessage({ type: 'success', text: '✅ Data marcată ca indisponibilă' })
+      if (error) {
+        setMessage({ type: 'error', text: '❌ Eroare la salvarea datei' })
+      } else {
+        setUnavailableDates([...unavailableDates, {
+          ...data,
+          dateObj: new Date(data.date)
+        }])
+        setMessage({ type: 'success', text: '✅ Data marcată ca indisponibilă' })
+      }
     }
 
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+  }
+
+  // Delete unavailable date
+  async function deleteUnavailableDate(dateId) {
+    if (!confirm('Ești sigur că vrei să ștergi această dată indisponibilă?')) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('unavailable_dates')
+        .delete()
+        .eq('id', dateId)
+
+      if (error) throw error
+
+      setUnavailableDates(unavailableDates.filter(d => d.id !== dateId))
+      setMessage({ type: 'success', text: '✅ Data a fost ștearsă cu succes!' })
+    } catch (error) {
+      setMessage({ type: 'error', text: '❌ Eroare la ștergerea datei' })
+    }
     setTimeout(() => setMessage({ type: '', text: '' }), 3000)
   }
 
@@ -428,6 +489,7 @@ export default function Profile() {
           gridTemplateColumns: '1fr',
           gap: '24px'
         }}>
+          
           {/* Categories Section */}
           <div className="profile-card" style={{
             backgroundColor: 'white',
@@ -558,8 +620,730 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Restul componentelor - Images, Form, Calendar - rămân la fel */}
-          {/* ... (codul pentru imagini, formular și calendar rămâne neschimbat) */}
+          {/* Images Section */}
+          <div className="profile-card" style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '20px'
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                backgroundColor: '#eff6ff',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg width="16" height="16" fill="none" stroke="#2563eb" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h2 style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#111827',
+                margin: 0
+              }}>
+                Imagini
+              </h2>
+            </div>
+
+            {/* Main Image */}
+            <div style={{ marginBottom: '32px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '12px'
+              }}>
+                Imagine principală
+              </label>
+              
+              <div style={{
+                border: '2px dashed #d1d5db',
+                borderRadius: '12px',
+                padding: '24px',
+                textAlign: 'center',
+                backgroundColor: '#f9fafb',
+                transition: 'all 0.2s'
+              }}>
+                {formData.image_url ? (
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <img 
+                      src={formData.image_url} 
+                      alt="Imagine principală"
+                      style={{
+                        width: '200px',
+                        height: '150px',
+                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb'
+                      }}
+                    />
+                    <button
+                      onClick={() => setFormData(prev => ({ ...prev, image_url: '' }))}
+                      style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Șterge imaginea"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: '2rem', marginBottom: '12px', opacity: 0.4 }}>📸</div>
+                    <p style={{ color: '#6b7280', marginBottom: '16px', fontSize: '14px' }}>
+                      Încarcă imaginea principală a afacerii tale
+                    </p>
+                  </div>
+                )}
+                
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => e.target.files[0] && uploadMainImage(e.target.files[0])}
+                  style={{ display: 'none' }}
+                  id="main-image-upload"
+                />
+                <label
+                  htmlFor="main-image-upload"
+                  style={{
+                    display: 'inline-block',
+                    padding: '8px 16px',
+                    backgroundColor: uploadingMain ? '#9ca3af' : '#2563eb',
+                    color: 'white',
+                    borderRadius: '8px',
+                    cursor: uploadingMain ? 'not-allowed' : 'pointer',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    transition: 'background-color 0.2s'
+                  }}
+                >
+                  {uploadingMain ? '⏳ Se încarcă...' : formData.image_url ? 'Schimbă imaginea' : 'Alege imagine'}
+                </label>
+              </div>
+            </div>
+
+            {/* Gallery */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '12px'
+              }}>
+                Galerie ({formData.gallery_images.length}/7)
+              </label>
+              
+              {formData.gallery_images.length > 0 && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                  gap: '12px',
+                  marginBottom: '16px'
+                }}>
+                  {formData.gallery_images.map((imageUrl, index) => (
+                    <div key={index} style={{ position: 'relative' }}>
+                      <img 
+                        src={imageUrl}
+                        alt={`Galerie ${index + 1}`}
+                        style={{
+                          width: '100%',
+                          height: '100px',
+                          objectFit: 'cover',
+                          borderRadius: '8px',
+                          border: '1px solid #e5e7eb'
+                        }}
+                      />
+                      <button
+                        onClick={() => removeGalleryImage(imageUrl, index)}
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          backgroundColor: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {formData.gallery_images.length < 7 && (
+                <div style={{
+                  border: '2px dashed #d1d5db',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  textAlign: 'center',
+                  backgroundColor: '#f9fafb'
+                }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px', opacity: 0.4 }}>🖼️</div>
+                  <p style={{ color: '#6b7280', marginBottom: '12px', fontSize: '14px' }}>
+                    Adaugă până la {7 - formData.gallery_images.length} imagini în galerie
+                  </p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => e.target.files.length > 0 && uploadGalleryImages(e.target.files)}
+                    style={{ display: 'none' }}
+                    id="gallery-upload"
+                  />
+                  <label
+                    htmlFor="gallery-upload"
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+                      backgroundColor: uploadingGallery ? '#9ca3af' : '#16a34a',
+                      color: 'white',
+                      borderRadius: '8px',
+                      cursor: uploadingGallery ? 'not-allowed' : 'pointer',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      transition: 'background-color 0.2s'
+                    }}
+                  >
+                    {uploadingGallery ? '⏳ Se încarcă...' : 'Adaugă imagini'}
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Business Information Form */}
+          <div className="profile-card" style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '20px'
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                backgroundColor: '#fef3c7',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg width="16" height="16" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <h2 style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#111827',
+                margin: 0
+              }}>
+                Informații Afacere
+              </h2>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: '20px'
+              }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Numele afacerii *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.business_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '12px',
+                      fontSize: '16px',
+                      transition: 'all 0.2s',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Ex: Studio Foto Magic Moments"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#2563eb'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Descrierea serviciilor
+                  </label>
+                  <textarea
+                    rows="4"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '12px',
+                      fontSize: '16px',
+                      transition: 'all 0.2s',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      resize: 'vertical'
+                    }}
+                    placeholder="Descrie serviciile tale, experiența și ce te face special..."
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#2563eb'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '20px'
+                }}>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '8px'
+                    }}>
+                      Telefon *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        transition: 'all 0.2s',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      placeholder="07xx xxx xxx"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#2563eb'
+                        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#d1d5db'
+                        e.target.style.boxShadow = 'none'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '8px'
+                    }}>
+                      Interval de preț
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.price_range}
+                      onChange={(e) => setFormData(prev => ({ ...prev, price_range: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        transition: 'all 0.2s',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      placeholder="Ex: 500-2000 lei"
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#2563eb'
+                        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#d1d5db'
+                        e.target.style.boxShadow = 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+  <label style={{
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '8px'
+  }}>
+    Locația *
+  </label>
+  <LocationPicker
+    selectedJudet={location.judet}
+    selectedLocalitate={location.localitate}
+    onLocationChange={(locationData) => {
+      setLocation(locationData)
+      // Actualizez și câmpul address pentru compatibilitate
+      const fullAddress = locationData.judet && locationData.localitate 
+        ? `${locationData.localitate}, ${locationData.judet}`
+        : ''
+      setFormData(prev => ({ ...prev, address: fullAddress }))
+    }}
+  />
+</div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || selectedCategories.length === 0}
+                style={{
+                  marginTop: '24px',
+                  width: '100%',
+                  backgroundColor: loading || selectedCategories.length === 0 ? '#9ca3af' : '#16a34a',
+                  color: 'white',
+                  padding: '14px 24px',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  border: 'none',
+                  cursor: loading || selectedCategories.length === 0 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseOver={(e) => {
+                  if (!loading && selectedCategories.length > 0) {
+                    e.target.style.backgroundColor = '#15803d'
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!loading && selectedCategories.length > 0) {
+                    e.target.style.backgroundColor = '#16a34a'
+                  }
+                }}
+              >
+                {loading ? (
+                  <>
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      border: '2px solid #ffffff',
+                      borderTop: '2px solid transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                    Se salvează...
+                  </>
+                ) : (
+                  '💾 Salvează Profilul'
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* Calendar Section */}
+          <div className="profile-card" style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '20px'
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                backgroundColor: '#fef2f2',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg width="16" height="16" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h2 style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#111827',
+                margin: 0
+              }}>
+                Calendar Disponibilitate
+              </h2>
+            </div>
+
+            <p style={{
+              color: '#6b7280',
+              fontSize: '14px',
+              marginBottom: '20px',
+              lineHeight: '1.5'
+            }}>
+              Marchează zilele în care <strong>nu ești disponibil</strong>. Clienții vor vedea doar zilele disponibile când caută furnizori.
+            </p>
+
+            {supplierId ? (
+              <Calendar 
+                unavailableDates={unavailableDates.map(d => d.dateObj)}
+                onDateClick={toggleDate}
+              />
+            ) : (
+              <div style={{
+                padding: '40px 20px',
+                textAlign: 'center',
+                backgroundColor: '#f9fafb',
+                borderRadius: '12px',
+                border: '2px dashed #d1d5db'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '12px', opacity: 0.4 }}>📅</div>
+                <p style={{ color: '#6b7280', margin: '0 0 16px 0', fontWeight: '500' }}>
+                  Calendarul va fi disponibil după salvarea profilului
+                </p>
+                <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+                  Completează și salvează informațiile de mai sus pentru a putea gestiona disponibilitatea
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Unavailable Dates List */}
+          {supplierId && unavailableDates.length > 0 && (
+            <div className="profile-card" style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '20px'
+              }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  backgroundColor: '#fef2f2',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <svg width="16" height="16" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  color: '#111827',
+                  margin: 0
+                }}>
+                  Date Indisponibile ({unavailableDates.length})
+                </h2>
+              </div>
+
+              <p style={{
+                color: '#6b7280',
+                fontSize: '14px',
+                marginBottom: '16px',
+                lineHeight: '1.5'
+              }}>
+                Lista completă cu datele în care nu ești disponibil. Poți șterge o dată dacă un client renunță la programare.
+              </p>
+
+              <div style={{
+                maxHeight: '300px',
+                overflowY: 'auto',
+                display: 'grid',
+                gap: '8px'
+              }}>
+                {unavailableDates
+                  .sort((a, b) => new Date(a.date) - new Date(b.date))
+                  .map((unavailableDate) => (
+                  <div
+                    key={unavailableDate.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      backgroundColor: '#fef2f2',
+                      borderRadius: '8px',
+                      border: '1px solid #fecaca'
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <div style={{
+                        width: '24px',
+                        height: '24px',
+                        backgroundColor: '#dc2626',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <svg width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          color: '#991b1b'
+                        }}>
+                          {new Date(unavailableDate.date).toLocaleDateString('ro-RO', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </div>
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#7f1d1d'
+                        }}>
+                          Data indisponibilă
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => deleteUnavailableDate(unavailableDate.id)}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        transition: 'background-color 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+                      title="Șterge data - folosește dacă clientul renunță"
+                    >
+                      <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Șterge
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {unavailableDates.length > 5 && (
+                <div style={{
+                  marginTop: '16px',
+                  padding: '12px 16px',
+                  backgroundColor: '#f0f9ff',
+                  borderRadius: '8px',
+                  border: '1px solid #0ea5e9'
+                }}>
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#0c4a6e',
+                    fontWeight: '500'
+                  }}>
+                    💡 Sfat: Poți șterge o dată dacă un client renunță la programare și vrei să fii din nou disponibil în acea zi.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
