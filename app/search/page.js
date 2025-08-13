@@ -351,9 +351,9 @@ export default function Search() {
                     lineHeight: '1.6'
                   }}>
                     {selectedCategory 
-                      ? `Nu există furnizori disponibili pentru această dată în categoria selectată.`
-                      : `Nu există furnizori disponibili pentru data selectată.`
-                    }
+  ? 'Nu există furnizori disponibili pentru această dată în categoria selectată.'
+  : 'Nu există furnizori disponibili pentru data selectată.'
+}
                   </p>
                   <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button
