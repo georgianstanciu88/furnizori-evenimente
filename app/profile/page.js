@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import Calendar from '@/components/Calendar'
 import LocationPicker from '@/components/LocationPicker'
 
 export default function Profile() {
@@ -21,13 +20,12 @@ export default function Profile() {
     image_url: '',
     gallery_images: []
   })
-  const [unavailableDates, setUnavailableDates] = useState([])
+  
   const [loading, setLoading] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
   const [uploadingMain, setUploadingMain] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
-  const [supplierId, setSupplierId] = useState(null)
-
+  
   useEffect(() => {
     checkUser()
     fetchCategories()
@@ -67,7 +65,7 @@ export default function Profile() {
     ...supplierData,
     gallery_images: supplierData.gallery_images || []
   })
-  setSupplierId(supplierData.id)
+  
   
   // Parsez adresa existentă pentru a extrage județul și localitatea
   if (supplierData.address) {
@@ -82,7 +80,7 @@ export default function Profile() {
   
   // Fetch supplier categories
   await fetchSupplierCategories(supplierData.id)
-  await fetchUnavailableDates(supplierData.id)
+  
 }
 
     setPageLoading(false)
@@ -107,18 +105,8 @@ export default function Profile() {
     }
   }
 
-  async function fetchUnavailableDates(supplierId) {
-    const { data } = await supabase
-      .from('unavailable_dates')
-      .select('*')
-      .eq('supplier_id', supplierId)
-      .order('date')
-
-    setUnavailableDates(data ? data.map(d => ({
-      ...d,
-      dateObj: new Date(d.date)
-    })) : [])
-  }
+  
+  
 
   // Toggle category selection
   function toggleCategory(categoryId) {
@@ -322,74 +310,8 @@ export default function Profile() {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000)
   }
 
-  // Handle calendar date toggle
-  async function toggleDate(date) {
-    if (!supplierId) {
-      setMessage({ type: 'error', text: '⚠️ Salvează mai întâi profilul!' })
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000)
-      return
-    }
-
-    const dateStr = date.toISOString().split('T')[0]
-    const existingDate = unavailableDates.find(d => 
-      d.dateObj.toDateString() === date.toDateString()
-    )
-
-    if (existingDate) {
-      // Remove date
-      await supabase
-        .from('unavailable_dates')
-        .delete()
-        .eq('id', existingDate.id)
-
-      setUnavailableDates(unavailableDates.filter(d => d.id !== existingDate.id))
-      setMessage({ type: 'success', text: '✅ Data marcată ca disponibilă' })
-    } else {
-      // Add date
-      const { data, error } = await supabase
-        .from('unavailable_dates')
-        .insert([{
-          supplier_id: supplierId,
-          date: dateStr
-        }])
-        .select()
-        .single()
-
-      if (error) {
-        setMessage({ type: 'error', text: '❌ Eroare la salvarea datei' })
-      } else {
-        setUnavailableDates([...unavailableDates, {
-          ...data,
-          dateObj: new Date(data.date)
-        }])
-        setMessage({ type: 'success', text: '✅ Data marcată ca indisponibilă' })
-      }
-    }
-
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000)
-  }
-
-  // Delete unavailable date
-  async function deleteUnavailableDate(dateId) {
-    if (!confirm('Ești sigur că vrei să ștergi această dată indisponibilă?')) {
-      return
-    }
-
-    try {
-      const { error } = await supabase
-        .from('unavailable_dates')
-        .delete()
-        .eq('id', dateId)
-
-      if (error) throw error
-
-      setUnavailableDates(unavailableDates.filter(d => d.id !== dateId))
-      setMessage({ type: 'success', text: '✅ Data a fost ștearsă cu succes!' })
-    } catch (error) {
-      setMessage({ type: 'error', text: '❌ Eroare la ștergerea datei' })
-    }
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000)
-  }
+  
+  
 
   if (pageLoading) {
     return (
@@ -1117,233 +1039,6 @@ export default function Profile() {
               </button>
             </form>
           </div>
-
-          {/* Calendar Section */}
-          <div className="profile-card" style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            padding: '24px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '20px'
-            }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                backgroundColor: '#fef2f2',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg width="16" height="16" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h2 style={{
-                fontSize: '1.25rem',
-                fontWeight: '700',
-                color: '#111827',
-                margin: 0
-              }}>
-                Calendar Disponibilitate
-              </h2>
-            </div>
-
-            <p style={{
-              color: '#6b7280',
-              fontSize: '14px',
-              marginBottom: '20px',
-              lineHeight: '1.5'
-            }}>
-              Marchează zilele în care <strong>nu ești disponibil</strong>. Clienții vor vedea doar zilele disponibile când caută furnizori.
-            </p>
-
-            {supplierId ? (
-              <Calendar 
-                unavailableDates={unavailableDates.map(d => d.dateObj)}
-                onDateClick={toggleDate}
-              />
-            ) : (
-              <div style={{
-                padding: '40px 20px',
-                textAlign: 'center',
-                backgroundColor: '#f9fafb',
-                borderRadius: '12px',
-                border: '2px dashed #d1d5db'
-              }}>
-                <div style={{ fontSize: '2rem', marginBottom: '12px', opacity: 0.4 }}>📅</div>
-                <p style={{ color: '#6b7280', margin: '0 0 16px 0', fontWeight: '500' }}>
-                  Calendarul va fi disponibil după salvarea profilului
-                </p>
-                <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
-                  Completează și salvează informațiile de mai sus pentru a putea gestiona disponibilitatea
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Unavailable Dates List */}
-          {supplierId && unavailableDates.length > 0 && (
-            <div className="profile-card" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              padding: '24px',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-            }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                marginBottom: '20px'
-              }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#fef2f2',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <svg width="16" height="16" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h2 style={{
-                  fontSize: '1.25rem',
-                  fontWeight: '700',
-                  color: '#111827',
-                  margin: 0
-                }}>
-                  Date Indisponibile ({unavailableDates.length})
-                </h2>
-              </div>
-
-              <p style={{
-                color: '#6b7280',
-                fontSize: '14px',
-                marginBottom: '16px',
-                lineHeight: '1.5'
-              }}>
-                Lista completă cu datele în care nu ești disponibil. Poți șterge o dată dacă un client renunță la programare.
-              </p>
-
-              <div style={{
-                maxHeight: '300px',
-                overflowY: 'auto',
-                display: 'grid',
-                gap: '8px'
-              }}>
-                {unavailableDates
-                  .sort((a, b) => new Date(a.date) - new Date(b.date))
-                  .map((unavailableDate) => (
-                  <div
-                    key={unavailableDate.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      backgroundColor: '#fef2f2',
-                      borderRadius: '8px',
-                      border: '1px solid #fecaca'
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}>
-                      <div style={{
-                        width: '24px',
-                        height: '24px',
-                        backgroundColor: '#dc2626',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <svg width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div style={{
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: '#991b1b'
-                        }}>
-                          {new Date(unavailableDate.date).toLocaleDateString('ro-RO', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </div>
-                        <div style={{
-                          fontSize: '12px',
-                          color: '#7f1d1d'
-                        }}>
-                          Data indisponibilă
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => deleteUnavailableDate(unavailableDate.id)}
-                      style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#dc2626',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        transition: 'background-color 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                      onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
-                      onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
-                      title="Șterge data - folosește dacă clientul renunță"
-                    >
-                      <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Șterge
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {unavailableDates.length > 5 && (
-                <div style={{
-                  marginTop: '16px',
-                  padding: '12px 16px',
-                  backgroundColor: '#f0f9ff',
-                  borderRadius: '8px',
-                  border: '1px solid #0ea5e9'
-                }}>
-                  <div style={{
-                    fontSize: '14px',
-                    color: '#0c4a6e',
-                    fontWeight: '500'
-                  }}>
-                    💡 Sfat: Poți șterge o dată dacă un client renunță la programare și vrei să fii din nou disponibil în acea zi.
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
