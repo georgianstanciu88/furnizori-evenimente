@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [unavailableDates, setUnavailableDates] = useState([])
   const [supplierId, setSupplierId] = useState(null)
+  const [undoAction, setUndoAction] = useState(null) // Pentru undo functionality
 
   useEffect(() => {
     checkUser()
@@ -70,7 +71,7 @@ export default function Dashboard() {
 
   async function toggleDate(date) {
     if (!supplierId) {
-      alert('Eroare la încărcarea datelor!')
+      showToast('Eroare la încărcarea datelor!', 'error')
       return
     }
 
@@ -80,15 +81,39 @@ export default function Dashboard() {
     )
 
     if (existingDate) {
+      // Dacă data există, o ștergem instant cu opțiune de undo
+      const tempRemovedDate = existingDate
+      setUnavailableDates(unavailableDates.filter(d => d.id !== existingDate.id))
+      
+      // Șterge din baza de date
       await supabase
         .from('unavailable_dates')
         .delete()
         .eq('id', existingDate.id)
 
-      setUnavailableDates(unavailableDates.filter(d => d.id !== existingDate.id))
-      alert('✅ Data marcată ca disponibilă')
+      // Afișează toast cu undo
+      setUndoAction({
+        type: 'restore',
+        data: tempRemovedDate,
+        message: 'Data marcată ca disponibilă'
+      })
+      
+      // Auto-clear undo după 5 secunde
+      setTimeout(() => setUndoAction(null), 5000)
+      
     } else {
-      const { data, error } = await supabase
+      // Dacă data nu există, o adăugăm instant cu opțiune de undo
+      const tempDate = {
+        supplier_id: supplierId,
+        date: dateStr,
+        dateObj: date,
+        temp_id: Date.now() // ID temporar până salvăm în DB
+      }
+      
+      setUnavailableDates([...unavailableDates, tempDate])
+
+      // Salvează în baza de date
+      const { data: savedData, error } = await supabase
         .from('unavailable_dates')
         .insert([{
           supplier_id: supplierId,
@@ -97,13 +122,75 @@ export default function Dashboard() {
         .select()
         .single()
 
-      if (!error) {
-        setUnavailableDates([...unavailableDates, {
-          ...data,
-          dateObj: new Date(data.date)
-        }])
-        alert('✅ Data marcată ca indisponibilă')
+      if (!error && savedData) {
+        // Înlocuiește data temporară cu cea din DB
+        setUnavailableDates(prev => prev.map(d => 
+          d.temp_id === tempDate.temp_id 
+            ? { ...savedData, dateObj: new Date(savedData.date) }
+            : d
+        ))
+
+        // Afișează toast cu undo
+        setUndoAction({
+          type: 'remove',
+          data: savedData,
+          message: 'Data marcată ca indisponibilă'
+        })
+        
+        // Auto-clear undo după 5 secunde
+        setTimeout(() => setUndoAction(null), 5000)
+      } else {
+        // Dacă salvarea a eșuat, remove din UI
+        setUnavailableDates(prev => prev.filter(d => d.temp_id !== tempDate.temp_id))
+        showToast('Eroare la salvare!', 'error')
       }
+    }
+  }
+
+  // Funcție pentru undo
+  async function handleUndo() {
+    if (!undoAction) return
+
+    if (undoAction.type === 'restore') {
+      // Restaurează data ștearsă
+      const { data: restoredData, error } = await supabase
+        .from('unavailable_dates')
+        .insert([{
+          supplier_id: supplierId,
+          date: undoAction.data.date
+        }])
+        .select()
+        .single()
+
+      if (!error && restoredData) {
+        setUnavailableDates(prev => [...prev, {
+          ...restoredData,
+          dateObj: new Date(restoredData.date)
+        }])
+        showToast('Data restaurată cu succes!', 'success')
+      }
+    } else if (undoAction.type === 'remove') {
+      // Șterge data adăugată
+      await supabase
+        .from('unavailable_dates')
+        .delete()
+        .eq('id', undoAction.data.id)
+
+      setUnavailableDates(prev => prev.filter(d => d.id !== undoAction.data.id))
+      showToast('Data eliminată cu succes!', 'success')
+    }
+
+    setUndoAction(null)
+  }
+
+  // Funcție pentru toast notifications
+  function showToast(message, type) {
+    // În loc de alert, poți implementa un sistem de toast
+    // Pentru acum folosim alert dar cu mesaje mai scurte
+    if (type === 'error') {
+      alert('❌ ' + message)
+    } else {
+      // Nu mai afișăm toast pentru acțiuni normale - doar undo bar-ul
     }
   }
 
@@ -112,14 +199,28 @@ export default function Dashboard() {
       return
     }
 
+    const dateToDelete = unavailableDates.find(d => d.id === dateId)
+    setUnavailableDates(unavailableDates.filter(d => d.id !== dateId))
+
     const { error } = await supabase
       .from('unavailable_dates')
       .delete()
       .eq('id', dateId)
 
     if (!error) {
-      setUnavailableDates(unavailableDates.filter(d => d.id !== dateId))
-      alert('✅ Data a fost ștearsă cu succes!')
+      // Afișează undo bar
+      setUndoAction({
+        type: 'restore',
+        data: dateToDelete,
+        message: 'Data ștearsă din listă'
+      })
+      
+      // Auto-clear undo după 5 secunde
+      setTimeout(() => setUndoAction(null), 5000)
+    } else {
+      // Dacă ștergerea a eșuat, restaurează în UI
+      setUnavailableDates(prev => [...prev, dateToDelete])
+      showToast('Eroare la ștergere!', 'error')
     }
   }
 

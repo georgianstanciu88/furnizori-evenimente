@@ -10,10 +10,41 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showCategoryView, setShowCategoryView] = useState(false)
 
   useEffect(() => {
     fetchData()
   }, [selectedCategory])
+
+  useEffect(() => {
+    // Check URL params on page load
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const categoryParam = urlParams.get('categoria')
+      if (categoryParam && categories.length > 0) {
+        const category = categories.find(c => c.slug === categoryParam || c.id.toString() === categoryParam)
+        if (category) {
+          setSelectedCategory(category.id)
+          setShowCategoryView(true)
+        }
+      }
+    }
+  }, [categories])
+
+  useEffect(() => {
+    // Update URL when category changes
+    if (typeof window !== 'undefined') {
+      if (selectedCategory && showCategoryView) {
+        const category = categories.find(c => c.id === selectedCategory)
+        if (category) {
+          const newUrl = `/?categoria=${category.slug || category.id}`
+          window.history.pushState({}, '', newUrl)
+        }
+      } else if (!selectedCategory) {
+        window.history.pushState({}, '', '/')
+      }
+    }
+  }, [selectedCategory, showCategoryView, categories])
 
   async function fetchData() {
     setLoading(true)
@@ -39,94 +70,81 @@ export default function Home() {
   }
 
   async function fetchSuppliers() {
-  let query = supabase
-    .from('suppliers')
-    .select(`
-      *,
-      supplier_categories (
-        categories (
-          id,
-          name
+    let query = supabase
+      .from('suppliers')
+      .select(`
+        *,
+        supplier_categories (
+          categories (
+            id,
+            name
+          )
         )
-      )
-    `)
-    .order('created_at', { ascending: false })
-  
-  if (selectedCategory) {
-    // Filtrează după categoria selectată
-    const { data: supplierIds } = await supabase
-      .from('supplier_categories')
-      .select('supplier_id')
-      .eq('category_id', selectedCategory)
+      `)
+      .order('created_at', { ascending: false })
     
-    if (supplierIds && supplierIds.length > 0) {
-      const ids = supplierIds.map(item => item.supplier_id)
-      query = query.in('id', ids)
-    } else {
-      // Nu există furnizori pentru această categorie
-      setSuppliers([])
-      return
+    if (selectedCategory) {
+      const { data: supplierIds } = await supabase
+        .from('supplier_categories')
+        .select('supplier_id')
+        .eq('category_id', selectedCategory)
+      
+      if (supplierIds && supplierIds.length > 0) {
+        const ids = supplierIds.map(item => item.supplier_id)
+        query = query.in('id', ids)
+      } else {
+        setSuppliers([])
+        return
+      }
     }
+
+    const { data } = await query
+    
+    const processedSuppliers = data?.map(supplier => ({
+      ...supplier,
+      categories: supplier.supplier_categories?.map(sc => sc.categories) || []
+    })) || []
+
+    setSuppliers(processedSuppliers)
   }
 
-  const { data } = await query
-  
-  // Procesează datele pentru a grupa categoriile
-  const processedSuppliers = data?.map(supplier => ({
-    ...supplier,
-    categories: supplier.supplier_categories?.map(sc => sc.categories) || []
-  })) || []
+  // Helper function pentru emoji-uri categorii
+  const getCategoryEmoji = (categoryName) => {
+    const emojiMap = {
+      'Locații': '🏛️',
+      'Muzică': '🎵', 
+      'Fotografie': '📸',
+      'Videografie': '🎬',
+      'Flori': '🌸',
+      'Decorațiuni': '🎨',
+      'Torturi și prăjituri': '🎂',
+      'Catering și băuturi': '🍽️',
+      'Alte servicii': '⭐'
+    }
+    return emojiMap[categoryName] || '🎉'
+  }
 
-  setSuppliers(processedSuppliers)
-}
+  // Funcție pentru a selecta o categorie și a afișa view-ul dedicat
+  const selectCategory = (categoryId) => {
+    setSelectedCategory(categoryId)
+    setShowCategoryView(true)
+    setTimeout(() => {
+      const element = document.querySelector('#category-view-section')
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' })
+      }
+    }, 100)
+  }
 
-  const categoryIcons = {
-  'Locații': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-    </svg>
-  ),
-  'Muzică': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-    </svg>
-  ),
-  'Fotografie': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
-    </svg>
-  ),
-  'Videografie': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-    </svg>
-  ),
-  'Flori': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M8.66 13.07c.15 0 .29-.01.29-.16 0-.06-.04-.11-.09-.15-.97-.87-1.58-2.14-1.58-3.54 0-2.63 2.13-4.76 4.76-4.76s4.76 2.13 4.76 4.76c0 1.4-.61 2.67-1.58 3.54-.05.04-.09.09-.09.15 0 .15.14.16.29.16.22 0 .42-.06.61-.16 1.23-.69 2.07-1.99 2.07-3.53 0-2.21-1.79-4-4-4s-4 1.79-4 4c0 1.54.84 2.84 2.07 3.53.19.1.39.16.61.16z"/>
-    </svg>
-  ),
-  'Decorațiuni': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-    </svg>
-  ),
-  'Torturi și prăjituri': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12 6c1.11 0 2-.9 2-2 0-.38-.1-.73-.29-1.03L12 0l-1.71 2.97c-.19.3-.29.65-.29 1.03 0 1.1.9 2 2 2zm4.6 9.99l-1.07-1.07-1.08 1.07c-1.3 1.3-3.58 1.31-4.89 0l-1.07-1.07-1.09 1.07C6.75 16.64 5.88 17 4.96 17c-.73 0-1.4-.23-1.96-.61V21c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-4.61c-.56.38-1.23.61-1.96.61-.92 0-1.79-.36-2.44-1.01zM18 9H6l-1.5 6h15L18 9z"/>
-    </svg>
-  ),
-  'Catering și băuturi': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M8.1 13.34l2.83-2.83L3.91 3.5c-.78-.78-.78-2.05 0-2.83.78-.78 2.05-.78 2.83 0l7.01 7.01 2.83-2.83c.78-.78 2.05-.78 2.83 0 .78.78.78 2.05 0 2.83L16.17 11l5.75 5.75c.78.78.78 2.05 0 2.83-.78.78-2.05.78-2.83 0L16 16.49V21c0 .55-.45 1-1 1s-1-.45-1-1v-4.51L8.1 10.6c-.78-.78-.78-2.05 0-2.83.78-.78 2.05-.78 2.83 0z"/>
-    </svg>
-  ),
-  'Alte servicii': (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-    </svg>
-  )
-}
+  // Funcție pentru a reseta la view-ul principal
+  const resetToMainView = () => {
+    setSelectedCategory('')
+    setShowCategoryView(false)
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'white', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -258,159 +276,339 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section style={{ padding: '60px 16px', backgroundColor: 'white' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: '800', color: '#111827', marginBottom: '16px' }}>
-              Caută după categorie
-            </h2>
-            <p style={{ fontSize: '1.125rem', color: '#6b7280' }}>
-              Alege tipul de serviciu perfect pentru evenimentul tău
-            </p>
-          </div>
-          
-          <div className="categories-grid" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '12px'
-          }}>
-            <button
-              onClick={() => setSelectedCategory('')}
-              style={{
-                padding: '16px',
-                borderRadius: '16px',
-                border: selectedCategory === '' ? '2px solid #2563eb' : '2px solid #e5e7eb',
-                backgroundColor: selectedCategory === '' ? '#eff6ff' : 'white',
-                color: selectedCategory === '' ? '#1d4ed8' : '#374151',
-                textAlign: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontSize: '14px',
-                fontWeight: '600'
-              }}
-              onMouseOver={(e) => {
-                if (selectedCategory !== '') {
-                  e.target.style.borderColor = '#9ca3af'
-                  e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }
-              }}
-              onMouseOut={(e) => {
-                if (selectedCategory !== '') {
-                  e.target.style.borderColor = '#e5e7eb'
-                  e.target.style.boxShadow = 'none'
-                }
-              }}
-            >
-              <div style={{ marginBottom: '8px', color: '#2563eb' }}>✨</div>
-              <div style={{ fontSize: '12px', fontWeight: '600' }}>Toate</div>
-              <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px' }}>{suppliers.length}</div>
-            </button>
+      {/* Featured Suppliers by Categories - Ascuns când e selectată o categorie */}
+      {!showCategoryView && (
+        <section style={{ padding: '60px 16px', backgroundColor: '#f9fafb' }}>
+          <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: '50px' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: '800', color: '#111827', marginBottom: '16px' }}>
+                Furnizori Recomandați
+              </h2>
+              <p style={{ fontSize: '1.125rem', color: '#6b7280' }}>
+                Descoperiți cei mai apreciați furnizori din fiecare categorie
+              </p>
+            </div>
 
-            {categories.map(category => {
-              const count = suppliers.filter(s => 
-  s.categories && s.categories.some(cat => cat.id === category.id)
-).length
-              const isSelected = selectedCategory === category.id
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  style={{
-                    padding: '16px',
-                    borderRadius: '16px',
-                    border: isSelected ? '2px solid #2563eb' : '2px solid #e5e7eb',
-                    backgroundColor: isSelected ? '#eff6ff' : 'white',
-                    color: isSelected ? '#1d4ed8' : '#374151',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontSize: '14px',
-                    fontWeight: '600'
-                  }}
-                  onMouseOver={(e) => {
-                    if (!isSelected) {
-                      e.target.style.borderColor = '#9ca3af'
-                      e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (!isSelected) {
-                      e.target.style.borderColor = '#e5e7eb'
-                      e.target.style.boxShadow = 'none'
-                    }
-                  }}
-                >
-                  <div style={{ marginBottom: '8px', color: isSelected ? '#1d4ed8' : '#6b7280' }}>
-  {categoryIcons[category.name] || (
-    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-    </svg>
-  )}
-</div>
-                  <div style={{ fontSize: '12px', fontWeight: '600' }}>{category.name}</div>
-                  <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px' }}>{count}</div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </section>
+            {loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    border: '3px solid #e5e7eb',
+                    borderTop: '3px solid #2563eb',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  <span style={{ fontSize: '1.125rem', color: '#6b7280' }}>Se încarcă furnizorii...</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                {categories.map(category => {
+                  const categorySuppliers = suppliers.filter(s => 
+                    s.categories && s.categories.some(cat => cat.id === category.id)
+                  ).slice(0, 4)
 
-      {/* Suppliers Grid */}
-      <section style={{ padding: '60px 16px', backgroundColor: '#f9fafb' }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-          {!user && suppliers.length > 0 && (
+                  if (categorySuppliers.length === 0) return null
+
+                  return (
+                    <div key={category.id} style={{ marginBottom: '60px' }}>
+                      {/* Category Header */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '30px',
+                        flexWrap: 'wrap',
+                        gap: '16px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ fontSize: '2rem', lineHeight: '1' }}>
+                            {getCategoryEmoji(category.name)}
+                          </div>
+                          <h3 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
+                            color: '#111827',
+                            margin: 0
+                          }}>
+                            {category.name}
+                          </h3>
+                        </div>
+                        
+                        <button
+                          onClick={() => selectCategory(category.id)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '10px 20px',
+                            backgroundColor: 'white',
+                            color: '#2563eb',
+                            border: '1px solid #2563eb',
+                            borderRadius: '8px',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            transition: 'all 0.2s',
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer'
+                          }}
+                          onMouseOver={(e) => {
+                            e.target.style.backgroundColor = '#2563eb'
+                            e.target.style.color = 'white'
+                          }}
+                          onMouseOut={(e) => {
+                            e.target.style.backgroundColor = 'white'
+                            e.target.style.color = '#2563eb'
+                          }}
+                        >
+                          Vezi toată categoria
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Category Suppliers Grid */}
+                      <div className="category-suppliers-grid" style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr',
+                        gap: '20px'
+                      }}>
+                        {categorySuppliers.map((supplier, index) => (
+                          <div 
+                            key={supplier.id}
+                            style={{ 
+                              opacity: 0,
+                              animation: `fadeIn 0.6s ease-out ${index * 0.1}s forwards`
+                            }}
+                          >
+                            <SupplierCard 
+                              supplier={supplier} 
+                              showAvailability={!!user}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Call to Action pentru toate categoriile */}
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  backgroundColor: 'white',
+                  borderRadius: '16px',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                }}>
+                  <h3 style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    color: '#111827',
+                    marginBottom: '12px',
+                    margin: '0 0 12px 0'
+                  }}>
+                    Caută furnizori specifici
+                  </h3>
+                  <p style={{
+                    color: '#6b7280',
+                    marginBottom: '24px',
+                    margin: '0 0 24px 0'
+                  }}>
+                    Folosește căutarea avansată pentru a găsi exact ce ai nevoie
+                  </p>
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    justifyContent: 'center',
+                    flexWrap: 'wrap'
+                  }}>
+                    {user ? (
+                      <Link 
+                        href="/search"
+                        style={{
+                          backgroundColor: '#2563eb',
+                          color: 'white',
+                          padding: '12px 24px',
+                          borderRadius: '8px',
+                          fontWeight: '600',
+                          textDecoration: 'none',
+                          fontSize: '14px',
+                          transition: 'background-color 0.2s',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
+                      >
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Caută după dată
+                      </Link>
+                    ) : (
+                      <Link 
+                        href="/register"
+                        style={{
+                          backgroundColor: '#2563eb',
+                          color: 'white',
+                          padding: '12px 24px',
+                          borderRadius: '8px',
+                          fontWeight: '600',
+                          textDecoration: 'none',
+                          fontSize: '14px',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
+                      >
+                        Înregistrează-te pentru căutare avansată
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Category View Section - Afișat când e selectată o categorie */}
+      {showCategoryView && selectedCategory && (
+        <section id="category-view-section" style={{ padding: '60px 16px', backgroundColor: 'white' }}>
+          <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+            
+            {/* Breadcrumb și Status Bar */}
             <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               marginBottom: '40px',
               padding: '20px',
-              backgroundColor: '#fef3c7',
-              border: '1px solid #f59e0b',
-              borderRadius: '16px',
-              display: 'flex',
-              alignItems: 'flex-start',
+              backgroundColor: '#f9fafb',
+              borderRadius: '12px',
+              border: '1px solid #e5e7eb',
+              flexWrap: 'wrap',
               gap: '16px'
             }}>
-              <div style={{ fontSize: '1.5rem', flexShrink: 0 }}>💡</div>
-              <div>
-                <p style={{ fontWeight: '600', color: '#92400e', marginBottom: '4px', margin: '0 0 4px 0' }}>
-                  Vrei să vezi toate detaliile?
-                </p>
-                <p style={{ color: '#92400e', margin: 0, fontSize: '14px', lineHeight: '1.4' }}>
-                  Creează un cont gratuit pentru a contacta furnizorii direct.
-                  <Link href="/register" style={{ marginLeft: '8px', textDecoration: 'underline', fontWeight: '600' }}>
-                    Înregistrează-te aici →
-                  </Link>
-                </p>
-              </div>
-            </div>
-          )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+                {/* Breadcrumb */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6b7280', fontSize: '14px' }}>
+                  <button
+                    onClick={resetToMainView}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2563eb',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    Acasă
+                  </button>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span style={{ fontWeight: '600', color: '#111827' }}>
+                    {categories.find(c => c.id === selectedCategory)?.name}
+                  </span>
+                </div>
 
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* Category info */}
                 <div style={{
-                  width: '32px',
-                  height: '32px',
-                  border: '3px solid #e5e7eb',
-                  borderTop: '3px solid #2563eb',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }}></div>
-                <span style={{ fontSize: '1.125rem', color: '#6b7280' }}>Se încarcă furnizorii...</span>
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginLeft: 'auto'
+                }}>
+                  <div style={{ fontSize: '1.5rem' }}>
+                    {getCategoryEmoji(categories.find(c => c.id === selectedCategory)?.name)}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#111827' }}>
+                      {categories.find(c => c.id === selectedCategory)?.name}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                      {suppliers.length} furnizori găsiți
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Close button */}
+              <button
+                onClick={resetToMainView}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Închide
+              </button>
             </div>
-          ) : suppliers.length > 0 ? (
-            <>
-              <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                <h2 style={{ fontSize: '2rem', fontWeight: '800', color: '#111827', marginBottom: '8px', margin: '0 0 8px 0' }}>
-                  {selectedCategory ? 'Furnizori selectați' : 'Toți furnizorii'}
-                </h2>
-                <p style={{ fontSize: '1.125rem', color: '#6b7280', margin: 0 }}>
-                  {suppliers.length} furnizori găsiți
-                </p>
+
+            {/* Warning pentru utilizatori neautentificați */}
+            {!user && (
+              <div style={{
+                marginBottom: '30px',
+                padding: '16px 20px',
+                backgroundColor: '#fef3c7',
+                border: '1px solid #f59e0b',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}>
+                <div style={{ fontSize: '1.25rem', flexShrink: 0 }}>💡</div>
+                <div>
+                  <p style={{ fontWeight: '600', color: '#92400e', marginBottom: '4px', margin: '0 0 4px 0' }}>
+                    Vrei să vezi toate detaliile și să contactezi furnizorii?
+                  </p>
+                  <p style={{ color: '#92400e', margin: 0, fontSize: '14px', lineHeight: '1.4' }}>
+                    <Link href="/register" style={{ textDecoration: 'underline', fontWeight: '600', color: '#92400e' }}>
+                      Înregistrează-te gratuit aici →
+                    </Link>
+                  </p>
+                </div>
               </div>
-              
+            )}
+            
+            {/* Suppliers Grid */}
+            {loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    border: '3px solid #e5e7eb',
+                    borderTop: '3px solid #2563eb',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  <span style={{ fontSize: '1.125rem', color: '#6b7280' }}>Se încarcă furnizorii...</span>
+                </div>
+              </div>
+            ) : suppliers.length > 0 ? (
               <div className="suppliers-grid" style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr',
@@ -419,7 +617,6 @@ export default function Home() {
                 {suppliers.map((supplier, index) => (
                   <div 
                     key={supplier.id}
-                    className="supplier-card"
                     style={{ 
                       opacity: 0,
                       animation: `fadeIn 0.6s ease-out ${index * 0.1}s forwards`
@@ -432,35 +629,119 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            </>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '80px 0' }}>
-              <div style={{ fontSize: '4rem', marginBottom: '24px' }}>🔍</div>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                Nu am găsit furnizori
-              </h3>
-              <p style={{ fontSize: '1.125rem', color: '#6b7280', marginBottom: '32px', margin: '0 0 32px 0' }}>
-                Încearcă să selectezi altă categorie sau verifică din nou mai târziu
-              </p>
-              <button
-                onClick={() => setSelectedCategory('')}
-                style={{
-                  backgroundColor: '#2563eb',
-                  color: 'white',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  fontWeight: '600',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '1rem'
-                }}
-              >
-                Vezi toți furnizorii
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '20px' }}>😔</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#111827', marginBottom: '12px', margin: '0 0 12px 0' }}>
+                  Nu am găsit furnizori în această categorie
+                </h3>
+                <p style={{ color: '#6b7280', marginBottom: '24px', margin: '0 0 24px 0' }}>
+                  Încearcă să revii mai târziu sau explorează alte categorii
+                </p>
+                <button
+                  onClick={resetToMainView}
+                  style={{
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Înapoi la toate categoriile
+                </button>
+              </div>
+            )}
+
+            {/* Call to Action la sfârșitul listei */}
+            {suppliers.length > 0 && (
+              <div style={{
+                textAlign: 'center',
+                marginTop: '50px',
+                padding: '30px',
+                backgroundColor: '#f9fafb',
+                borderRadius: '12px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <h3 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  color: '#111827',
+                  marginBottom: '12px',
+                  margin: '0 0 12px 0'
+                }}>
+                  Nu ai găsit ce căutai?
+                </h3>
+                <p style={{
+                  color: '#6b7280',
+                  marginBottom: '20px',
+                  margin: '0 0 20px 0'
+                }}>
+                  Explorează alte categorii sau folosește căutarea avansată
+                </p>
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'center',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={resetToMainView}
+                    style={{
+                      backgroundColor: '#2563eb',
+                      color: 'white',
+                      padding: '12px 24px',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
+                  >
+                    Vezi toate categoriile
+                  </button>
+                  
+                  {user && (
+                    <Link 
+                      href="/search"
+                      style={{
+                        backgroundColor: 'white',
+                        color: '#374151',
+                        padding: '12px 24px',
+                        borderRadius: '8px',
+                        fontWeight: '600',
+                        border: '1px solid #d1d5db',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        transition: 'all 0.2s',
+                        textDecoration: 'none',
+                        display: 'inline-block'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.backgroundColor = '#f9fafb'
+                        e.target.style.borderColor = '#9ca3af'
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.backgroundColor = 'white'
+                        e.target.style.borderColor = '#d1d5db'
+                      }}
+                    >
+                      Caută după dată
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+        </section>
+      )}
 
       {/* CTA Section */}
       {!user && (
@@ -504,6 +785,42 @@ export default function Home() {
           to { opacity: 1; transform: translateY(0); }
         }
         
+        /* Category suppliers grid responsive */
+        .category-suppliers-grid {
+          grid-template-columns: 1fr !important;
+          gap: 16px !important;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+          .category-suppliers-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+        }
+        
+        /* Tablet and up */
+        @media (min-width: 641px) {
+          .category-suppliers-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 20px !important;
+          }
+        }
+        
+        /* Desktop optimizations */
+        @media (min-width: 1024px) {
+          .category-suppliers-grid {
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 24px !important;
+          }
+        }
+        
+        /* Focus styles for accessibility */
+        button:focus {
+          outline: 2px solid #2563eb;
+          outline-offset: 2px;
+        }
+        
         /* Mobile-first responsive design */
         .hero-container {
           padding: 0 16px !important;
@@ -517,11 +834,6 @@ export default function Home() {
         .hero-subtitle {
           font-size: 1rem !important;
           line-height: 1.5 !important;
-        }
-        
-        .categories-grid {
-          grid-template-columns: repeat(2, 1fr) !important;
-          gap: 12px !important;
         }
         
         .suppliers-grid {
@@ -548,11 +860,6 @@ export default function Home() {
             font-size: 1.125rem !important;
           }
           
-          .categories-grid {
-            grid-template-columns: repeat(3, 1fr) !important;
-            gap: 16px !important;
-          }
-          
           .suppliers-grid {
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 24px !important;
@@ -576,11 +883,6 @@ export default function Home() {
           
           .hero-subtitle {
             font-size: 1.25rem !important;
-          }
-          
-          .categories-grid {
-            grid-template-columns: repeat(6, 1fr) !important;
-            gap: 20px !important;
           }
           
           .suppliers-grid {
