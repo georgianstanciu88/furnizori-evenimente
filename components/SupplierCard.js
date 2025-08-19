@@ -224,22 +224,29 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
             {supplier.business_name}
           </h3>
           
-          {/* Description */}
-          {supplier.description && (
-            <p style={{
-              color: '#6b7280',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              marginBottom: '16px',
-              margin: '0 0 16px 0',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
-            }}>
-              {supplier.description}
-            </p>
-          )}
+          {/* Description - always render with min height */}
+          <div style={{
+            marginBottom: '16px',
+            minHeight: '63px', // 3 lines * 21px line-height
+            display: 'flex',
+            alignItems: 'flex-start'
+          }}>
+            {supplier.description ? (
+              <p style={{
+                color: '#6b7280',
+                fontSize: '14px',
+                lineHeight: '1.5',
+                margin: 0,
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {supplier.description}
+              </p>
+            ) : null}
+          </div>
 
           {/* Details */}
           <div style={{ marginBottom: '20px' }}>

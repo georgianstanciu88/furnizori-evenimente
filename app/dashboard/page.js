@@ -440,12 +440,17 @@ export default function Dashboard() {
                         Descriere
                       </div>
                       <div style={{
-                        fontSize: '14px',
-                        color: '#374151',
-                        lineHeight: '1.5'
-                      }}>
-                        {supplierProfile.description}
-                      </div>
+  fontSize: '14px',
+  color: '#374151',
+  lineHeight: '1.5',
+  display: '-webkit-box',
+  WebkitLineClamp: 3,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+}}>
+  {supplierProfile.description}
+</div>
                     </div>
                   )}
 

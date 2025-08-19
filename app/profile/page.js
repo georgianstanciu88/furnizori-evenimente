@@ -966,28 +966,28 @@ export default function Profile() {
                 </div>
 
                 <div>
-  <label style={{
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '8px'
-  }}>
-    Locația *
-  </label>
-  <LocationPicker
-    selectedJudet={location.judet}
-    selectedLocalitate={location.localitate}
-    onLocationChange={(locationData) => {
-      setLocation(locationData)
-      // Actualizez și câmpul address pentru compatibilitate
-      const fullAddress = locationData.judet && locationData.localitate 
-        ? `${locationData.localitate}, ${locationData.judet}`
-        : ''
-      setFormData(prev => ({ ...prev, address: fullAddress }))
-    }}
-  />
-</div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Locația *
+                  </label>
+                  <LocationPicker
+                    selectedJudet={location.judet}
+                    selectedLocalitate={location.localitate}
+                    onLocationChange={(locationData) => {
+                      setLocation(locationData)
+                      // Actualizez și câmpul address pentru compatibilitate
+                      const fullAddress = locationData.judet && locationData.localitate 
+                        ? `${locationData.localitate}, ${locationData.judet}`
+                        : ''
+                      setFormData(prev => ({ ...prev, address: fullAddress }))
+                    }}
+                  />
+                </div>
               </div>
 
               <button

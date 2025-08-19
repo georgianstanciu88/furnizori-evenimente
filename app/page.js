@@ -810,7 +810,7 @@ export default function Home() {
         /* Desktop optimizations */
         @media (min-width: 1024px) {
           .category-suppliers-grid {
-            grid-template-columns: repeat(4, 1fr) !important;
+            grid-template-columns: repeat(3, 1fr) !important;
             gap: 24px !important;
           }
         }

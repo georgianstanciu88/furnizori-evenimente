@@ -405,24 +405,24 @@ export default function SupplierProfile() {
                 </div>
 
                 {supplier.description ? (
-                  <p style={{
-                    color: '#374151',
-                    fontSize: '16px',
-                    lineHeight: '1.6',
-                    margin: 0
-                  }}>
-                    {supplier.description}
-                  </p>
-                ) : (
-                  <p style={{
-                    color: '#9ca3af',
-                    fontSize: '16px',
-                    fontStyle: 'italic',
-                    margin: 0
-                  }}>
-                    Furnizorul nu a adăugat încă o descriere.
-                  </p>
-                )}
+  <p style={{
+    color: '#374151',
+    fontSize: '16px',
+    lineHeight: '1.6',
+    margin: 0
+  }}>
+    {supplier.description}
+  </p>
+) : (
+  <p style={{
+    color: '#9ca3af',
+    fontSize: '16px',
+    fontStyle: 'italic',
+    margin: 0
+  }}>
+    Furnizorul nu a adăugat încă o descriere.
+  </p>
+)}
               </div>
             </div>
 
@@ -1148,6 +1148,15 @@ export default function SupplierProfile() {
         .main-content-grid {
           grid-template-columns: 1fr !important;
         }
+
+        [data-description] * {
+  font-family: 'Inter, system-ui, sans-serif' !important;
+  color: #374151 !important;
+}
+
+[data-description] div {
+  font-family: 'Inter, system-ui, sans-serif' !important;
+}
         
         @media (min-width: 768px) {
           .main-content-grid {
