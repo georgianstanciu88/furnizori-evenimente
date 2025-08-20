@@ -973,7 +973,7 @@ export default function Profile() {
                     color: '#374151',
                     marginBottom: '8px'
                   }}>
-                    Locația *
+                    
                   </label>
                   <LocationPicker
                     selectedJudet={location.judet}

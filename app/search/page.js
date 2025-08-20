@@ -3,10 +3,12 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import SupplierCard from '@/components/SupplierCard'
+import LocationPicker from '@/components/LocationPicker'
 
 export default function Search() {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState('')
+  const [selectedLocation, setSelectedLocation] = useState({ judet: '', localitate: '' })
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('')
   const [availableSuppliers, setAvailableSuppliers] = useState([])
@@ -155,128 +157,145 @@ export default function Search() {
             margin: '0 auto'
           }}>
             <div className="search-form-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr',
-              gap: '16px'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '8px'
-                }}>
-                  Data Evenimentului *
-                </label>
-                <input
-                  type="date"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '12px',
-                    fontSize: '16px',
-                    transition: 'all 0.2s',
-                    outline: 'none'
-                  }}
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#2563eb'
-                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#d1d5db'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-              </div>
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  gap: '16px'
+}}>
+  <div>
+    <label style={{
+      display: 'block',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: '#374151',
+      marginBottom: '8px'
+    }}>
+      Data Evenimentului *
+    </label>
+    <input
+      type="date"
+      style={{
+        width: '100%',
+        padding: '12px 16px',
+        border: '1px solid #d1d5db',
+        borderRadius: '12px',
+        fontSize: '16px',
+        transition: 'all 0.2s',
+        outline: 'none'
+      }}
+      value={selectedDate}
+      onChange={(e) => setSelectedDate(e.target.value)}
+      min={new Date().toISOString().split('T')[0]}
+      onFocus={(e) => {
+        e.target.style.borderColor = '#2563eb'
+        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+      }}
+      onBlur={(e) => {
+        e.target.style.borderColor = '#d1d5db'
+        e.target.style.boxShadow = 'none'
+      }}
+    />
+  </div>
 
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '8px'
-                }}>
-                  Categorie (opțional)
-                </label>
-                <select
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '12px',
-                    fontSize: '16px',
-                    backgroundColor: 'white',
-                    transition: 'all 0.2s',
-                    outline: 'none'
-                  }}
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#2563eb'
-                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#d1d5db'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                >
-                  <option value="">Toate categoriile</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
+  <div>
+    <label style={{
+      display: 'block',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: '#374151',
+      marginBottom: '8px'
+    }}>
+      Locația (opțional)
+    </label>
+    <LocationPicker
+      selectedJudet={selectedLocation.judet}
+      selectedLocalitate={selectedLocation.localitate}
+      onLocationChange={setSelectedLocation}
+    />
+  </div>
 
-              <button
-                onClick={searchSuppliers}
-                disabled={loading || !selectedDate}
-                style={{
-                  width: '100%',
-                  backgroundColor: loading || !selectedDate ? '#9ca3af' : '#2563eb',
-                  color: 'white',
-                  padding: '14px 24px',
-                  borderRadius: '12px',
-                  fontWeight: '600',
-                  border: 'none',
-                  cursor: loading || !selectedDate ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  fontSize: '16px',
-                  marginTop: '8px'
-                }}
-                onMouseOver={(e) => {
-                  if (!loading && selectedDate) {
-                    e.target.style.backgroundColor = '#1d4ed8'
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!loading && selectedDate) {
-                    e.target.style.backgroundColor = '#2563eb'
-                  }
-                }}
-              >
-                {loading ? (
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <div style={{
-                      width: '20px',
-                      height: '20px',
-                      border: '2px solid #ffffff',
-                      borderTop: '2px solid transparent',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }}></div>
-                    Se caută...
-                  </span>
-                ) : (
-                  '🔍 Caută'
-                )}
-              </button>
-            </div>
+  <div>
+    <label style={{
+      display: 'block',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: '#374151',
+      marginBottom: '8px'
+    }}>
+      Categorie (opțional)
+    </label>
+    <select
+      style={{
+        width: '100%',
+        padding: '12px 16px',
+        border: '1px solid #d1d5db',
+        borderRadius: '12px',
+        fontSize: '16px',
+        backgroundColor: 'white',
+        transition: 'all 0.2s',
+        outline: 'none'
+      }}
+      value={selectedCategory}
+      onChange={(e) => setSelectedCategory(e.target.value)}
+      onFocus={(e) => {
+        e.target.style.borderColor = '#2563eb'
+        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+      }}
+      onBlur={(e) => {
+        e.target.style.borderColor = '#d1d5db'
+        e.target.style.boxShadow = 'none'
+      }}
+    >
+      <option value="">Toate categoriile</option>
+      {categories.map(cat => (
+        <option key={cat.id} value={cat.id}>{cat.name}</option>
+      ))}
+    </select>
+  </div>
+
+  <button
+    onClick={searchSuppliers}
+    disabled={loading || !selectedDate}
+    style={{
+      width: '100%',
+      backgroundColor: loading || !selectedDate ? '#9ca3af' : '#2563eb',
+      color: 'white',
+      padding: '14px 24px',
+      borderRadius: '12px',
+      fontWeight: '600',
+      border: 'none',
+      cursor: loading || !selectedDate ? 'not-allowed' : 'pointer',
+      transition: 'all 0.2s',
+      fontSize: '16px',
+      marginTop: '8px'
+    }}
+    onMouseOver={(e) => {
+      if (!loading && selectedDate) {
+        e.target.style.backgroundColor = '#1d4ed8'
+      }
+    }}
+    onMouseOut={(e) => {
+      if (!loading && selectedDate) {
+        e.target.style.backgroundColor = '#2563eb'
+      }
+    }}
+  >
+    {loading ? (
+      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+        <div style={{
+          width: '20px',
+          height: '20px',
+          border: '2px solid #ffffff',
+          borderTop: '2px solid transparent',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        Se caută...
+      </span>
+    ) : (
+      '🔍 Caută'
+    )}
+  </button>
+</div>
           </div>
         </div>
       </section>
