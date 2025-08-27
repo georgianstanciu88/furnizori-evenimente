@@ -1,19 +1,21 @@
+// app/search/page.js - Enhanced version
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import SupplierCard from '@/components/SupplierCard'
-import LocationPicker from '@/components/LocationPicker'
+import AdvancedSearchMap from '@/components/AdvancedSearchMap'
 
 export default function Search() {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState('')
-  const [selectedLocation, setSelectedLocation] = useState({ judet: '', localitate: '' })
+  const [selectedLocation, setSelectedLocation] = useState(null)
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('')
   const [availableSuppliers, setAvailableSuppliers] = useState([])
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [searchMode, setSearchMode] = useState('date') // 'date', 'location', 'both'
 
   useEffect(() => {
     checkAuth()
@@ -36,8 +38,8 @@ export default function Search() {
   }
 
   async function searchSuppliers() {
-    if (!selectedDate) {
-      alert('Te rog selectează o dată!')
+    if (!selectedDate && !selectedLocation) {
+      alert('Selectează cel puțin data sau locația!')
       return
     }
 
@@ -45,8 +47,7 @@ export default function Search() {
     setHasSearched(true)
 
     try {
-      // Step 1: Get all suppliers with their categories
-      let suppliersQuery = supabase
+      let query = supabase
         .from('suppliers')
         .select(`
           *,
@@ -58,26 +59,29 @@ export default function Search() {
           )
         `)
 
-      // Step 2: If category is selected, filter by it
+      // Filtru după categorie dacă e selectată
       if (selectedCategory) {
-        // Get supplier IDs that have the selected category
         const { data: supplierIdsData } = await supabase
           .from('supplier_categories')
           .select('supplier_id')
           .eq('category_id', selectedCategory)
 
         if (supplierIdsData && supplierIdsData.length > 0) {
-          const supplierIds = supplierIdsData.map(item => item.supplier_id)
-          suppliersQuery = suppliersQuery.in('id', supplierIds)
+          const ids = supplierIdsData.map(item => item.supplier_id)
+          query = query.in('id', ids)
         } else {
-          // No suppliers found for this category
           setAvailableSuppliers([])
           setLoading(false)
           return
         }
       }
 
-      const { data: allSuppliers, error: suppliersError } = await suppliersQuery
+      // Filtru după locație dacă e selectată
+      if (selectedLocation && selectedLocation.city) {
+        query = query.ilike('address', `%${selectedLocation.city}%`)
+      }
+
+      const { data: allSuppliers, error: suppliersError } = await query
 
       if (suppliersError) {
         console.error('Error fetching suppliers:', suppliersError)
@@ -86,34 +90,41 @@ export default function Search() {
         return
       }
 
-      // Step 3: Get unavailable supplier IDs for the selected date
-      const { data: unavailableData } = await supabase
-        .from('unavailable_dates')
-        .select('supplier_id')
-        .eq('date', selectedDate)
+      // Filtru după disponibilitate în data selectată
+      let availableSuppliers = allSuppliers || []
 
-      const unavailableSupplierIds = unavailableData ? unavailableData.map(u => u.supplier_id) : []
+      if (selectedDate) {
+        const { data: unavailableData } = await supabase
+          .from('unavailable_dates')
+          .select('supplier_id')
+          .eq('date', selectedDate)
 
-      // Step 4: Filter out unavailable suppliers
-      const availableSuppliers = allSuppliers ? allSuppliers.filter(supplier => 
-        !unavailableSupplierIds.includes(supplier.id)
-      ) : []
+        const unavailableSupplierIds = unavailableData ? unavailableData.map(u => u.supplier_id) : []
+        availableSuppliers = availableSuppliers.filter(supplier => 
+          !unavailableSupplierIds.includes(supplier.id)
+        )
+      }
 
-      // Step 5: Process suppliers data to include categories properly
+      // Procesează datele furnizorilor
       const processedSuppliers = availableSuppliers.map(supplier => ({
         ...supplier,
         categories: supplier.supplier_categories?.map(sc => sc.categories) || []
       }))
 
-      console.log('Found suppliers:', processedSuppliers.length)
-      console.log('Unavailable suppliers for date:', unavailableSupplierIds.length)
-      
       setAvailableSuppliers(processedSuppliers)
     } catch (error) {
       console.error('Error in searchSuppliers:', error)
       setAvailableSuppliers([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleLocationSelect = (locationData) => {
+    setSelectedLocation(locationData)
+    if (searchMode === 'location' || searchMode === 'both') {
+      // Trigger automatic search when location is selected
+      setTimeout(searchSuppliers, 500)
     }
   }
 
@@ -124,237 +135,460 @@ export default function Search() {
       paddingTop: '64px',
       fontFamily: 'Inter, system-ui, sans-serif'
     }}>
-      {/* Header */}
-      <section style={{ backgroundColor: 'white', borderBottom: '1px solid #e5e7eb', padding: '40px 16px' }}>
+      {/* Enhanced Header */}
+      <section style={{ 
+        backgroundColor: 'white', 
+        borderBottom: '1px solid #e5e7eb', 
+        padding: '40px 16px' 
+      }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <h1 className="search-title" style={{
-              fontSize: '2rem',
+            <h1 style={{
+              fontSize: '2.5rem',
               fontWeight: '800',
               color: '#111827',
               marginBottom: '12px',
               margin: '0 0 12px 0'
             }}>
-              Caută Furnizori Disponibili
+              Căutare Inteligentă cu Hartă
             </h1>
             <p style={{
-              fontSize: '1rem',
+              fontSize: '1.125rem',
               color: '#6b7280',
               margin: 0
             }}>
-              Găsește furnizorii liberi pentru data ta
+              Descoperă furnizori disponibili în locația ta și din apropierea acesteia
             </p>
           </div>
 
-          {/* Search Form */}
+          {/* Search Mode Tabs */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '32px'
+          }}>
+            <div style={{
+              display: 'inline-flex',
+              backgroundColor: '#f3f4f6',
+              borderRadius: '12px',
+              padding: '4px',
+              gap: '4px'
+            }}>
+              <button
+                onClick={() => setSearchMode('date')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  backgroundColor: searchMode === 'date' ? '#2563eb' : 'transparent',
+                  color: searchMode === 'date' ? 'white' : '#6b7280'
+                }}
+              >
+                📅 Căutare după dată
+              </button>
+              <button
+                onClick={() => setSearchMode('location')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  backgroundColor: searchMode === 'location' ? '#2563eb' : 'transparent',
+                  color: searchMode === 'location' ? 'white' : '#6b7280'
+                }}
+              >
+                🗺️ Căutare cu harta
+              </button>
+              <button
+                onClick={() => setSearchMode('both')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  backgroundColor: searchMode === 'both' ? '#2563eb' : 'transparent',
+                  color: searchMode === 'both' ? 'white' : '#6b7280'
+                }}
+              >
+                🎯 Căutare completă
+              </button>
+            </div>
+          </div>
+
+          {/* Search Forms */}
           <div style={{
             backgroundColor: 'white',
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
             borderRadius: '16px',
-            padding: '24px',
+            padding: '32px',
             border: '1px solid #e5e7eb',
-            maxWidth: '800px',
+            maxWidth: '900px',
             margin: '0 auto'
           }}>
-            <div className="search-form-grid" style={{
-  display: 'grid',
-  gridTemplateColumns: '1fr',
-  gap: '16px'
-}}>
-  <div>
-    <label style={{
-      display: 'block',
-      fontSize: '14px',
-      fontWeight: '600',
-      color: '#374151',
-      marginBottom: '8px'
-    }}>
-      Data Evenimentului *
-    </label>
-    <input
-      type="date"
-      style={{
-        width: '100%',
-        padding: '12px 16px',
-        border: '1px solid #d1d5db',
-        borderRadius: '12px',
-        fontSize: '16px',
-        transition: 'all 0.2s',
-        outline: 'none'
-      }}
-      value={selectedDate}
-      onChange={(e) => setSelectedDate(e.target.value)}
-      min={new Date().toISOString().split('T')[0]}
-      onFocus={(e) => {
-        e.target.style.borderColor = '#2563eb'
-        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-      }}
-      onBlur={(e) => {
-        e.target.style.borderColor = '#d1d5db'
-        e.target.style.boxShadow = 'none'
-      }}
-    />
-  </div>
+            
+            {(searchMode === 'date' || searchMode === 'both') && (
+              <div style={{
+                marginBottom: searchMode === 'both' ? '24px' : '0'
+              }}>
+                <h3 style={{
+                  fontSize: '1.125rem',
+                  fontWeight: '700',
+                  color: '#111827',
+                  marginBottom: '16px',
+                  margin: '0 0 16px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  📅 Selectează data evenimentului
+                </h3>
+                
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  gap: '16px'
+                }}>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '8px'
+                    }}>
+                      Data evenimentului *
+                    </label>
+                    <input
+                      type="date"
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        transition: 'all 0.2s',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#2563eb'
+                        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#d1d5db'
+                        e.target.style.boxShadow = 'none'
+                      }}
+                    />
+                  </div>
 
-  <div>
-    <label style={{
-      display: 'block',
-      fontSize: '14px',
-      fontWeight: '600',
-      color: '#374151',
-      marginBottom: '8px'
-    }}>
-      Locația (opțional)
-    </label>
-    <LocationPicker
-      selectedJudet={selectedLocation.judet}
-      selectedLocalitate={selectedLocation.localitate}
-      onLocationChange={setSelectedLocation}
-    />
-  </div>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '8px'
+                    }}>
+                      Categorie (opțional)
+                    </label>
+                    <select
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        backgroundColor: 'white',
+                        transition: 'all 0.2s',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#2563eb'
+                        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#d1d5db'
+                        e.target.style.boxShadow = 'none'
+                      }}
+                    >
+                      <option value="">Toate categoriile</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
 
-  <div>
-    <label style={{
-      display: 'block',
-      fontSize: '14px',
-      fontWeight: '600',
-      color: '#374151',
-      marginBottom: '8px'
-    }}>
-      Categorie (opțional)
-    </label>
-    <select
-      style={{
-        width: '100%',
-        padding: '12px 16px',
-        border: '1px solid #d1d5db',
-        borderRadius: '12px',
-        fontSize: '16px',
-        backgroundColor: 'white',
-        transition: 'all 0.2s',
-        outline: 'none'
-      }}
-      value={selectedCategory}
-      onChange={(e) => setSelectedCategory(e.target.value)}
-      onFocus={(e) => {
-        e.target.style.borderColor = '#2563eb'
-        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-      }}
-      onBlur={(e) => {
-        e.target.style.borderColor = '#d1d5db'
-        e.target.style.boxShadow = 'none'
-      }}
-    >
-      <option value="">Toate categoriile</option>
-      {categories.map(cat => (
-        <option key={cat.id} value={cat.id}>{cat.name}</option>
-      ))}
-    </select>
-  </div>
+            {(searchMode === 'location' || searchMode === 'both') && (
+              <div style={{
+                marginBottom: searchMode === 'both' ? '24px' : '0'
+              }}>
+                <h3 style={{
+                  fontSize: '1.125rem',
+                  fontWeight: '700',
+                  color: '#111827',
+                  marginBottom: '16px',
+                  margin: '0 0 16px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  🗺️ Selectează locația pe hartă
+                </h3>
+                
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  marginBottom: '16px'
+                }}>
+                  <p style={{
+                    fontSize: '14px',
+                    color: '#64748b',
+                    margin: '0 0 8px 0'
+                  }}>
+                    💡 <strong>Cum funcționează:</strong>
+                  </p>
+                  <ul style={{
+                    fontSize: '14px',
+                    color: '#64748b',
+                    paddingLeft: '16px',
+                    margin: 0,
+                    lineHeight: '1.6'
+                  }}>
+                    <li>Caută orașul sau click pe hartă pentru a selecta locația</li>
+                    <li>Vezi furnizorii <strong>locali</strong> din orașul selectat</li>
+                    <li>Descoperă <strong>recomandări mobile</strong> din zona apropiată (50km)</li>
+                  </ul>
+                </div>
 
-  <button
-    onClick={searchSuppliers}
-    disabled={loading || !selectedDate}
-    style={{
-      width: '100%',
-      backgroundColor: loading || !selectedDate ? '#9ca3af' : '#2563eb',
-      color: 'white',
-      padding: '14px 24px',
-      borderRadius: '12px',
-      fontWeight: '600',
-      border: 'none',
-      cursor: loading || !selectedDate ? 'not-allowed' : 'pointer',
-      transition: 'all 0.2s',
-      fontSize: '16px',
-      marginTop: '8px'
-    }}
-    onMouseOver={(e) => {
-      if (!loading && selectedDate) {
-        e.target.style.backgroundColor = '#1d4ed8'
-      }
-    }}
-    onMouseOut={(e) => {
-      if (!loading && selectedDate) {
-        e.target.style.backgroundColor = '#2563eb'
-      }
-    }}
-  >
-    {loading ? (
-      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-        <div style={{
-          width: '20px',
-          height: '20px',
-          border: '2px solid #ffffff',
-          borderTop: '2px solid transparent',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
-        Se caută...
-      </span>
-    ) : (
-      '🔍 Caută'
-    )}
-  </button>
-</div>
+                <AdvancedSearchMap
+                  selectedDate={selectedDate}
+                  onLocationSelect={handleLocationSelect}
+                  searchRadius={50}
+                />
+              </div>
+            )}
+
+            {/* Search Button - only for date and both modes */}
+            {searchMode !== 'location' && (
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  onClick={searchSuppliers}
+                  disabled={loading || (!selectedDate && !selectedLocation)}
+                  style={{
+                    backgroundColor: loading || (!selectedDate && !selectedLocation) ? '#9ca3af' : '#2563eb',
+                    color: 'white',
+                    padding: '16px 32px',
+                    borderRadius: '12px',
+                    fontWeight: '600',
+                    border: 'none',
+                    cursor: loading || (!selectedDate && !selectedLocation) ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    fontSize: '16px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  onMouseOver={(e) => {
+                    if (!loading && (selectedDate || selectedLocation)) {
+                      e.target.style.backgroundColor = '#1d4ed8'
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!loading && (selectedDate || selectedLocation)) {
+                      e.target.style.backgroundColor = '#2563eb'
+                    }
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        border: '2px solid #ffffff',
+                        borderTop: '2px solid transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                      Se caută...
+                    </>
+                  ) : (
+                    <>
+                      🔍 Caută furnizori
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Results */}
+      {/* Results Section */}
       <section style={{ padding: '40px 16px' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          {/* Search Summary */}
+          {hasSearched && !loading && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '32px',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px'
+              }}>
+                <div>
+                  <h2 style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    color: '#111827',
+                    margin: '0 0 8px 0'
+                  }}>
+                    {availableSuppliers.length > 0 ? (
+                      `🎉 ${availableSuppliers.length} furnizori disponibili`
+                    ) : (
+                      '😔 Nu am găsit furnizori'
+                    )}
+                  </h2>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '14px', color: '#6b7280' }}>
+                    {selectedDate && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#eff6ff',
+                        color: '#1d4ed8',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontWeight: '500'
+                      }}>
+                        📅 {new Date(selectedDate).toLocaleDateString('ro-RO', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    )}
+                    {selectedLocation && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#f0fdf4',
+                        color: '#15803d',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontWeight: '500'
+                      }}>
+                        📍 {selectedLocation.city || selectedLocation.name?.split(',')[0]}
+                      </span>
+                    )}
+                    {selectedCategory && categories.find(c => c.id == selectedCategory) && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#fef3c7',
+                        color: '#92400e',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontWeight: '500'
+                      }}>
+                        🏷️ {categories.find(c => c.id == selectedCategory).name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      setSelectedDate('')
+                      setSelectedLocation(null)
+                      setSelectedCategory('')
+                      setAvailableSuppliers([])
+                      setHasSearched(false)
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#f3f4f6',
+                      color: '#374151',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#e5e7eb'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                  >
+                    🔄 Căutare nouă
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Results Grid */}
           {hasSearched && !loading && (
             <>
               {availableSuppliers.length > 0 ? (
-                <>
-                  <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                    <h2 className="results-title" style={{
-                      fontSize: '1.5rem',
-                      fontWeight: '800',
-                      color: '#111827',
-                      marginBottom: '8px',
-                      margin: '0 0 8px 0'
-                    }}>
-                      {availableSuppliers.length} furnizori disponibili
-                    </h2>
-                    <p style={{
-                      fontSize: '1rem',
-                      color: '#6b7280',
-                      margin: 0
-                    }}>
-                      pentru data de {new Date(selectedDate).toLocaleDateString('ro-RO', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                      {selectedCategory && categories.find(c => c.id == selectedCategory) && (
-                        <span> în categoria {categories.find(c => c.id == selectedCategory).name}</span>
-                      )}
-                    </p>
-                  </div>
-                  
-                  <div className="results-grid" style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr',
-                    gap: '20px'
-                  }}>
-                    {availableSuppliers.map(supplier => (
-                      <SupplierCard 
-                        key={supplier.id} 
-                        supplier={supplier} 
-                        showAvailability={true}
-                        highlightAvailable={true}
-                      />
-                    ))}
-                  </div>
-                </>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                  gap: '24px'
+                }}>
+                  {availableSuppliers.map(supplier => (
+                    <SupplierCard 
+                      key={supplier.id} 
+                      supplier={supplier} 
+                      showAvailability={true}
+                      highlightAvailable={true}
+                    />
+                  ))}
+                </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '60px 16px' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '20px' }}>😔</div>
+                <div style={{
+                  textAlign: 'center',
+                  padding: '60px 20px',
+                  backgroundColor: 'white',
+                  borderRadius: '16px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🔍</div>
                   <h3 style={{
-                    fontSize: '1.25rem',
-                    fontWeight: '800',
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
                     color: '#111827',
                     marginBottom: '12px',
                     margin: '0 0 12px 0'
@@ -365,103 +599,179 @@ export default function Search() {
                     fontSize: '1rem',
                     color: '#6b7280',
                     marginBottom: '24px',
-                    maxWidth: '400px',
-                    margin: '0 auto 24px',
+                    margin: '0 0 24px 0',
+                    maxWidth: '500px',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
                     lineHeight: '1.6'
                   }}>
-                    {selectedCategory 
-  ? 'Nu există furnizori disponibili pentru această dată în categoria selectată.'
-  : 'Nu există furnizori disponibili pentru data selectată.'
-}
+                    {selectedDate && selectedLocation 
+                      ? `Nu există furnizori disponibili pentru ${new Date(selectedDate).toLocaleDateString('ro-RO')} în ${selectedLocation.city || 'zona selectată'}.`
+                      : selectedDate 
+                        ? `Nu există furnizori disponibili pentru ${new Date(selectedDate).toLocaleDateString('ro-RO')}.`
+                        : selectedLocation
+                          ? `Nu există furnizori disponibili în ${selectedLocation.city || 'zona selectată'}.`
+                          : 'Încearcă să modifici criteriile de căutare.'
+                    }
                   </p>
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => {
-                        setSelectedDate('')
-                        setAvailableSuppliers([])
-                        setHasSearched(false)
-                      }}
-                      style={{
-                        backgroundColor: '#2563eb',
-                        color: 'white',
-                        padding: '12px 24px',
-                        borderRadius: '12px',
-                        fontWeight: '600',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '1rem'
-                      }}
-                    >
-                      Alege altă dată
-                    </button>
+                  
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    justifyContent: 'center',
+                    flexWrap: 'wrap'
+                  }}>
+                    {selectedDate && (
+                      <button
+                        onClick={() => {
+                          setSelectedDate('')
+                          if (selectedLocation) {
+                            setTimeout(searchSuppliers, 100)
+                          }
+                        }}
+                        style={{
+                          backgroundColor: '#2563eb',
+                          color: 'white',
+                          padding: '12px 24px',
+                          borderRadius: '8px',
+                          fontWeight: '600',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
+                      >
+                        📅 Caută fără dată specifică
+                      </button>
+                    )}
+                    
                     {selectedCategory && (
                       <button
                         onClick={() => {
                           setSelectedCategory('')
-                          if (selectedDate) {
-                            searchSuppliers()
+                          if (selectedDate || selectedLocation) {
+                            setTimeout(searchSuppliers, 100)
                           }
                         }}
                         style={{
                           backgroundColor: '#16a34a',
                           color: 'white',
                           padding: '12px 24px',
-                          borderRadius: '12px',
+                          borderRadius: '8px',
                           fontWeight: '600',
                           border: 'none',
                           cursor: 'pointer',
-                          fontSize: '1rem'
+                          fontSize: '14px',
+                          transition: 'background-color 0.2s'
                         }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#15803d'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#16a34a'}
                       >
-                        Vezi toate categoriile
+                        🏷️ Toate categoriile
                       </button>
                     )}
+
+                    <button
+                      onClick={() => setSearchMode('location')}
+                      style={{
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        padding: '12px 24px',
+                        borderRadius: '8px',
+                        fontWeight: '600',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#d97706'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = '#f59e0b'}
+                    >
+                      🗺️ Încearcă cu harta
+                    </button>
                   </div>
                 </div>
               )}
             </>
           )}
 
+          {/* Loading State */}
+          {loading && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '60px 0',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px'
+              }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  border: '3px solid #e5e7eb',
+                  borderTop: '3px solid #2563eb',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+                <div>
+                  <h3 style={{
+                    fontSize: '1.125rem',
+                    fontWeight: '700',
+                    color: '#111827',
+                    margin: '0 0 4px 0'
+                  }}>
+                    Se caută furnizorii...
+                  </h3>
+                  <p style={{
+                    fontSize: '14px',
+                    color: '#6b7280',
+                    margin: 0
+                  }}>
+                    Analizăm disponibilitatea și locația furnizorilor
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Welcome State */}
           {!hasSearched && !loading && (
-            <div style={{ textAlign: 'center', padding: '60px 16px' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '20px' }}>📅</div>
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 20px',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🎯</div>
               <h3 style={{
-                fontSize: '1.25rem',
-                fontWeight: '800',
+                fontSize: '1.5rem',
+                fontWeight: '700',
                 color: '#111827',
                 marginBottom: '12px',
                 margin: '0 0 12px 0'
               }}>
-                Selectează o dată și caută
+                Începe căutarea perfectă
               </h3>
               <p style={{
                 fontSize: '1rem',
                 color: '#6b7280',
-                margin: 0
+                margin: 0,
+                maxWidth: '500px',
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                lineHeight: '1.6'
               }}>
-                Alege data evenimentului tău pentru a vedea furnizorii disponibili
+                Selectează modul de căutare de mai sus și descoperă furnizorii ideali pentru evenimentul tău.
               </p>
-            </div>
-          )}
-
-
-
-          
-          {/* Debug info - remove in production - avem NODE_ENV == development cand facem debug. daca schimbam in false ar trebui sa dispara */}
-          {hasSearched && process.env.NODE_ENV === 'false' && (
-            <div style={{
-              marginTop: '40px',
-              padding: '16px',
-              backgroundColor: '#f3f4f6',
-              borderRadius: '8px',
-              fontSize: '14px',
-              color: '#6b7280'
-            }}>
-              <strong>Debug Info:</strong><br />
-              Selected Date: {selectedDate}<br />
-              Selected Category: {selectedCategory || 'None'}<br />
-              Found Suppliers: {availableSuppliers.length}<br />
-              Has Searched: {hasSearched ? 'Yes' : 'No'}
             </div>
           )}
         </div>
@@ -470,68 +780,6 @@ export default function Search() {
       <style jsx>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
-        }
-        
-        /* Mobile-first responsive design */
-        .search-title {
-          font-size: 2rem !important;
-        }
-        
-        .results-title {
-          font-size: 1.5rem !important;
-        }
-        
-        .search-form-grid {
-          grid-template-columns: 1fr !important;
-          gap: 16px !important;
-        }
-        
-        .results-grid {
-          grid-template-columns: 1fr !important;
-          gap: 20px !important;
-        }
-        
-        /* Tablet breakpoint */
-        @media (min-width: 640px) {
-          .search-title {
-            font-size: 2.5rem !important;
-          }
-          
-          .results-title {
-            font-size: 2rem !important;
-          }
-          
-          .search-form-grid {
-            grid-template-columns: 1fr 1fr !important;
-            gap: 20px !important;
-          }
-          
-          .search-form-grid button {
-            grid-column: 1 / -1 !important;
-          }
-          
-          .results-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 24px !important;
-          }
-        }
-        
-        /* Desktop breakpoint */
-        @media (min-width: 1024px) {
-          .search-form-grid {
-            grid-template-columns: 1fr 1fr auto !important;
-            align-items: end !important;
-          }
-          
-          .search-form-grid button {
-            grid-column: auto !important;
-            margin-top: 0 !important;
-          }
-          
-          .results-grid {
-            grid-template-columns: repeat(3, 1fr) !important;
-            gap: 32px !important;
-          }
         }
       `}</style>
     </div>

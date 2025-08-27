@@ -364,7 +364,7 @@ export default function LocationPicker({
                       color: '#6b7280',
                       fontSize: '14px'
                     }}>
-                      Nu s-au gasit localitati pentru "{searchTerm}"
+                      Nu s-au gasit localitati pentru '{searchTerm}''
                     </div>
                   ) : null}
                   

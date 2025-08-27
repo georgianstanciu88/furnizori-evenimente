@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 - Sintaxa nouă */
+@import "tailwindcss/preflight";
+@import "tailwindcss/utilities";
 
 /* Reset and base styles */
 * {
