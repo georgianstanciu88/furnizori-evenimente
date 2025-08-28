@@ -40,7 +40,8 @@ export default function LocationPicker({
   selectedJudet = '', 
   selectedLocalitate = '', 
   onLocationChange,
-  disabled = false 
+  disabled = false,
+  allowAddNew = true  // Nou prop pentru a controla adăugarea localităților
 }) {
   const [currentJudet, setCurrentJudet] = useState(selectedJudet)
   const [currentLocalitate, setCurrentLocalitate] = useState(selectedLocalitate)
@@ -123,6 +124,8 @@ export default function LocationPicker({
   }
 
   async function saveNewLocalitate(judet, localitate) {
+    if (!allowAddNew) return localitate // Nu salvează dacă nu este permis
+    
     try {
       const normalizedLocalitate = normalizeLocationName(localitate)
       
@@ -155,7 +158,7 @@ export default function LocationPicker({
   }
 
   const handleCustomSubmit = async () => {
-    if (customValue.trim() && currentJudet) {
+    if (customValue.trim() && currentJudet && allowAddNew) {
       const normalizedLocalitate = normalizeLocationName(customValue.trim())
       
       const exists = localitati.some(l => 
@@ -248,151 +251,54 @@ export default function LocationPicker({
         
         {!showCustomInput ? (
           <>
-            {/* Input pentru search & select cu rezultate */}
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                value={searchTerm || currentLocalitate}
-                onChange={(e) => {
-                  const value = e.target.value
-                  setSearchTerm(value)
+            <select
+              value={currentLocalitate}
+              onChange={(e) => {
+                const value = e.target.value
+                if (value === '__ADD_NEW__' && allowAddNew) {
+                  setShowCustomInput(true)
                   setCurrentLocalitate('')
-                  
-                  // Dacă găsește exact o localitate, o selectează automat
-                  const exactMatch = localitati.find(l => 
-                    l.nume.toLowerCase() === value.toLowerCase()
-                  )
-                  if (exactMatch) {
-                    setCurrentLocalitate(exactMatch.nume)
-                    setSearchTerm('')
-                  }
-                }}
-                onFocus={(e) => {
-                  // Când se focusează, curăță selecția pentru a permite căutarea
-                  if (currentLocalitate) {
-                    setSearchTerm(currentLocalitate)
-                    setCurrentLocalitate('')
-                  }
-                  if (!disabled && currentJudet && !loading) {
-                    e.target.style.borderColor = '#2563eb'
-                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-                  }
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#d1d5db'
-                  e.target.style.boxShadow = 'none'
-                  
-                  // Când pierde focus, restaurează selecția dacă nu e în dropdown
-                  setTimeout(() => {
-                    if (!currentLocalitate && !searchTerm) {
-                      // Nu face nimic
-                    } else if (searchTerm && !currentLocalitate) {
-                      // Dacă a rămas cu text dar fără selecție, curăță
-                      setSearchTerm('')
-                    }
-                  }, 200)
-                }}
-                placeholder={loading ? 'Se incarca...' : 'Cauta sau selecteaza localitatea...'}
-                disabled={disabled || !currentJudet || loading}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '12px',
-                  fontSize: '16px',
-                  backgroundColor: disabled || !currentJudet ? '#f9fafb' : 'white',
-                  transition: 'all 0.2s',
-                  outline: 'none',
-                  paddingRight: '40px' // Space pentru dropdown arrow
-                }}
-              />
-              
-              {/* Dropdown arrow */}
-              <div style={{
-                position: 'absolute',
-                right: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                pointerEvents: 'none',
-                color: '#9ca3af'
-              }}>
-                ▼
-              </div>
-
-              {/* Dropdown cu rezultate filtrate */}
-              {(searchTerm || currentLocalitate === '') && currentJudet && !loading && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  backgroundColor: 'white',
-                  border: '1px solid #d1d5db',
-                  borderTop: 'none',
-                  borderRadius: '0 0 12px 12px',
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  zIndex: 1000,
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }}>
-                  {filteredLocalitati.length > 0 ? (
-                    filteredLocalitati.map(localitate => (
-                      <div
-                        key={localitate.nume}
-                        onClick={() => {
-                          setCurrentLocalitate(localitate.nume)
-                          setSearchTerm('')
-                        }}
-                        style={{
-                          padding: '12px 16px',
-                          cursor: 'pointer',
-                          borderBottom: '1px solid #f3f4f6',
-                          transition: 'background-color 0.2s'
-                        }}
-                        onMouseOver={(e) => e.target.style.backgroundColor = '#f8fafc'}
-                        onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
-                      >
-                        {localitate.nume}
-                        {!localitate.is_predefined && (
-                          <span style={{ color: '#6b7280', fontSize: '12px' }}> (adaugata)</span>
-                        )}
-                      </div>
-                    ))
-                  ) : searchTerm ? (
-                    <div style={{
-                      padding: '12px 16px',
-                      color: '#6b7280',
-                      fontSize: '14px'
-                    }}>
-                      Nu s-au gasit localitati pentru '{searchTerm}''
-                    </div>
-                  ) : null}
-                  
-                  {/* Opțiune pentru adăugare nouă */}
-                  {currentJudet && (
-                    <div
-                      onClick={() => {
-                        setShowCustomInput(true)
-                        setSearchTerm('')
-                        setCurrentLocalitate('')
-                      }}
-                      style={{
-                        padding: '12px 16px',
-                        cursor: 'pointer',
-                        backgroundColor: '#f0fdf4',
-                        color: '#16a34a',
-                        fontWeight: '600',
-                        borderTop: '1px solid #e5e7eb'
-                      }}
-                      onMouseOver={(e) => e.target.style.backgroundColor = '#dcfce7'}
-                      onMouseOut={(e) => e.target.style.backgroundColor = '#f0fdf4'}
-                    >
-                      + Adauga localitate noua
-                    </div>
-                  )}
-                </div>
+                } else {
+                  setCurrentLocalitate(value)
+                }
+              }}
+              disabled={disabled || !currentJudet || loading}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #d1d5db',
+                borderRadius: '12px',
+                fontSize: '16px',
+                backgroundColor: disabled || !currentJudet ? '#f9fafb' : 'white',
+                transition: 'all 0.2s',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                if (!disabled && currentJudet && !loading) {
+                  e.target.style.borderColor = '#2563eb'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                }
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db'
+                e.target.style.boxShadow = 'none'
+              }}
+            >
+              <option value="">
+                {loading ? 'Se incarca...' : 'Selecteaza localitatea'}
+              </option>
+              {localitati.map((localitate, index) => (
+                <option key={index} value={localitate.nume}>
+                  {localitate.nume}
+                  {!localitate.is_predefined ? ' (Custom)' : ''}
+                </option>
+              ))}
+              {allowAddNew && currentJudet && !loading && (
+                <option value="__ADD_NEW__" style={{ fontWeight: 'bold', color: '#16a34a' }}>
+                  + Adaugă localitate nouă
+                </option>
               )}
-            </div>
+            </select>
             
             {/* Helper text */}
             {currentJudet && !loading && (
@@ -403,7 +309,7 @@ export default function LocationPicker({
               }}>
                 {currentLocalitate ? 
                   `Selectat: ${currentLocalitate}` :
-                  `${localitati.length} localitati disponibile - Scrie pentru a cauta`
+                  `${localitati.length} localități disponibile`
                 }
               </div>
             )}
