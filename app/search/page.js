@@ -156,15 +156,21 @@ export default function Search() {
   }
 
   async function searchMobileSuppliers() {
-    const nearbyJudete = {
-      'Vaslui': ['Vaslui', 'Iasi', 'Bacau', 'Galati', 'Neamt'],
-      'Iasi': ['Iasi', 'Vaslui', 'Neamt', 'Suceava', 'Botosani'],
-      'Bacau': ['Bacau', 'Vaslui', 'Neamt', 'Vrancea', 'Galati'],
-      'Bucuresti': ['Bucuresti', 'Ilfov', 'Giurgiu', 'Calarasi', 'Ialomita']
+    if (!selectedLocation.judet || !selectedLocation.localitate) {
+      console.log('Nu sunt specificate județul și localitatea pentru furnizorii mobili')
+      return []
     }
 
-    const searchJudete = nearbyJudete[selectedLocation.judet] || [selectedLocation.judet]
+    // Obține coordonatele locației selectate
+    const searchCoords = await getLocationCoordinates(selectedLocation.judet, selectedLocation.localitate)
+    if (!searchCoords) {
+      console.log('Nu s-au găsit coordonate pentru locația selectată')
+      return []
+    }
 
+    console.log(`Căutare furnizori mobili pentru ${selectedLocation.localitate}, ${selectedLocation.judet} (${searchCoords.lat}, ${searchCoords.lng})`)
+
+    // Căutare TOȚI furnizorii mobili din țară
     const { data: suppliers, error } = await supabase
       .from('suppliers')
       .select(`
@@ -174,55 +180,139 @@ export default function Search() {
         )
       `)
       .eq('available_for_travel', true)
-      .in('location_judet', searchJudete)
 
-    if (error || !suppliers) return []
+    if (error || !suppliers) {
+      console.log('Eroare la căutarea furnizorilor mobili:', error)
+      return []
+    }
 
-    // Exclude furnizorii din aceeași localitate
+    console.log(`Găsiți ${suppliers.length} furnizori mobili în total`)
+
+    // Exclude furnizorii din aceeași localitate (aceștia sunt deja în locali)
     let filteredSuppliers = suppliers.filter(supplier => 
       !(supplier.location_judet === selectedLocation.judet && 
         supplier.location_localitate === selectedLocation.localitate)
     )
 
-    // Calculează distanțe
-    filteredSuppliers = filteredSuppliers.map(supplier => ({
-      ...supplier,
-      distance: calculateDistance(selectedLocation, supplier),
-      travelInfo: `Din ${supplier.location_localitate}, ${supplier.location_judet}`
-    })).sort((a, b) => a.distance - b.distance)
+    console.log(`După excluderea localilor: ${filteredSuppliers.length} furnizori`)
+
+    // Calculează distanțe precise pentru fiecare furnizor
+    const suppliersWithDistance = await Promise.all(
+      filteredSuppliers.map(async (supplier) => {
+        const supplierCoords = await getLocationCoordinates(supplier.location_judet, supplier.location_localitate)
+        
+        let distance = 999 // fallback pentru furnizori fără coordonate
+        if (supplierCoords) {
+          distance = calculateHaversineDistance(
+            searchCoords.lat, searchCoords.lng,
+            supplierCoords.lat, supplierCoords.lng
+          )
+        }
+
+        return {
+          ...supplier,
+          distance: Math.round(distance),
+          travelInfo: `Din ${supplier.location_localitate}, ${supplier.location_judet}`
+        }
+      })
+    )
+
+    console.log('Distanțe calculate pentru furnizori:', suppliersWithDistance.map(s => 
+      `${s.business_name}: ${s.distance}km din ${s.location_localitate}, ${s.location_judet}`
+    ))
+
+    // Filtrează după travel_radius al furnizorului (dacă este specificat)
+    const radiusFilteredSuppliers = suppliersWithDistance.filter(supplier => {
+      // Dacă furnizorul nu are travel_radius specificat, folosește 200km ca default
+      const maxDistance = supplier.travel_radius || 200
+      const withinRange = supplier.distance <= maxDistance
+      
+      console.log(`${supplier.business_name}: ${supplier.distance}km <= ${maxDistance}km? ${withinRange}`)
+      return withinRange
+    })
+
+    console.log(`După filtrarea pe rază: ${radiusFilteredSuppliers.length} furnizori`)
+
+    // Sortează după distanță
+    const sortedSuppliers = radiusFilteredSuppliers.sort((a, b) => a.distance - b.distance)
 
     // Filtru după categorie
+    let finalSuppliers = sortedSuppliers
     if (selectedCategory) {
-      filteredSuppliers = filteredSuppliers.filter(supplier => 
+      finalSuppliers = sortedSuppliers.filter(supplier => 
         supplier.supplier_categories?.some(sc => 
           sc.categories && sc.categories.id.toString() === selectedCategory.toString()
         )
       )
+      console.log(`După filtrarea pe categorie: ${finalSuppliers.length} furnizori`)
     }
 
     // Filtru după preț
     if (priceRange) {
-      filteredSuppliers = filteredSuppliers.filter(supplier => 
+      finalSuppliers = finalSuppliers.filter(supplier => 
         supplier.price_range === priceRange
       )
+      console.log(`După filtrarea pe preț: ${finalSuppliers.length} furnizori`)
     }
 
-    return await filterByAvailability(filteredSuppliers, selectedDate)
+    const result = await filterByAvailability(finalSuppliers, selectedDate)
+    console.log(`Rezultat final: ${result.length} furnizori mobili`)
+    
+    return result
   }
 
-  function calculateDistance(location1, supplier) {
-    if (location1.judet === supplier.location_judet) {
-      return location1.localitate === supplier.location_localitate ? 0 : 25
+  // Obține coordonatele pentru o locație din baza de date
+  async function getLocationCoordinates(judet, localitate) {
+    try {
+      const { data, error } = await supabase
+        .from('localitati')
+        .select('latitude, longitude')
+        .eq('judet', judet)
+        .eq('nume', localitate)
+        .single()
+
+      if (error || !data || !data.latitude || !data.longitude) {
+        // Fallback la centrul județului
+        return getJudetCenter(judet)
+      }
+
+      return { lat: data.latitude, lng: data.longitude }
+    } catch (error) {
+      console.error(`Eroare la obținerea coordonatelor pentru ${localitate}, ${judet}:`, error)
+      return getJudetCenter(judet)
     }
-    
-    const distanceMatrix = {
-      'Vaslui-Iasi': 65, 'Iasi-Vaslui': 65,
-      'Vaslui-Bacau': 85, 'Bacau-Vaslui': 85,
-      'Vaslui-Galati': 95, 'Galati-Vaslui': 95
+  }
+
+  // Coordonate aproximative pentru centrele județelor (fallback)
+  function getJudetCenter(judet) {
+    const judetCenters = {
+      'Vaslui': { lat: 46.64, lng: 27.73 },
+      'Iasi': { lat: 47.16, lng: 27.59 },
+      'Bacau': { lat: 46.57, lng: 26.91 },
+      'Galati': { lat: 45.45, lng: 28.03 },
+      'Neamt': { lat: 47.20, lng: 26.33 },
+      'Bucuresti': { lat: 44.43, lng: 26.10 },
+      'Cluj': { lat: 46.77, lng: 23.60 },
+      'Timis': { lat: 45.76, lng: 21.23 },
+      'Brasov': { lat: 45.66, lng: 25.61 },
+      'Constanta': { lat: 44.18, lng: 28.65 }
+      // Adaugă mai multe după nevoie
     }
-    
-    const key = `${location1.judet}-${supplier.location_judet}`
-    return distanceMatrix[key] || 100
+
+    return judetCenters[judet] || { lat: 45.94, lng: 25.02 } // Centrul României
+  }
+
+  // Calculul distanței Haversine pentru coordonate precise
+  function calculateHaversineDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371 // Raza Pământului în km
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLng = (lng2 - lng1) * Math.PI / 180
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng/2) * Math.sin(dLng/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
   }
 
   async function filterByAvailability(suppliers, date) {
