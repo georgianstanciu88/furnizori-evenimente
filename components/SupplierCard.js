@@ -1,10 +1,35 @@
+// FOLOSEȘTE EXACT ACEEAȘI LOGICĂ CA PE PAGINA PRINCIPALĂ (NU parametrul user)
+
 'use client'
+import React, { useState } from 'react'
 import Link from 'next/link'
-import { useState } from 'react'
 
 export default function SupplierCard({ supplier, showAvailability, highlightAvailable }) {
   const [showGallery, setShowGallery] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  // ✅ VERIFICARE DE SIGURANȚĂ LA ÎNCEPUT:
+  if (!supplier) {
+    return (
+      <div style={{
+        backgroundColor: '#f3f4f6',
+        borderRadius: '16px',
+        border: '1px solid #e5e7eb',
+        padding: '20px',
+        textAlign: 'center',
+        color: '#9ca3af',
+        minHeight: '200px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div>
+          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
+          <p style={{ margin: 0 }}>Se încarcă furnizorul...</p>
+        </div>
+      </div>
+    )
+  }
 
   const getCategoryIcon = (categoryName) => {
     const icons = {
@@ -17,10 +42,11 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
     return icons[categoryName] || '🎉'
   }
 
-  const hasGallery = supplier.gallery_images && supplier.gallery_images.length > 0
+  const hasGallery = supplier?.gallery_images && Array.isArray(supplier.gallery_images) && supplier.gallery_images.length > 0
   const galleryImages = hasGallery ? supplier.gallery_images : []
 
   const openGallery = (index = 0) => {
+    if (galleryImages.length === 0) return
     setCurrentImageIndex(index)
     setShowGallery(true)
     document.body.style.overflow = 'hidden'
@@ -32,10 +58,12 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
   }
 
   const nextImage = () => {
+    if (galleryImages.length <= 1) return
     setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length)
   }
 
   const prevImage = () => {
+    if (galleryImages.length <= 1) return
     setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)
   }
 
@@ -67,10 +95,10 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
           backgroundColor: '#f3f4f6',
           overflow: 'hidden'
         }}>
-          {supplier.image_url ? (
+          {supplier?.image_url ? (
             <img 
               src={supplier.image_url} 
-              alt={supplier.business_name}
+              alt={supplier?.business_name || 'Furnizor'}
               style={{
                 width: '100%',
                 height: '100%',
@@ -106,7 +134,8 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
                 marginBottom: '8px',
                 opacity: 0.4
               }}>
-                {getCategoryIcon(supplier.categories?.name)}
+                {supplier?.categories && supplier.categories[0] ? 
+                  getCategoryIcon(supplier.categories[0].name) : '🎉'}
               </div>
               <p style={{
                 color: '#9ca3af',
@@ -115,7 +144,8 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
                 margin: '0 0 4px 0',
                 textAlign: 'center'
               }}>
-                {supplier.categories?.name || 'Servicii'}
+                {supplier?.categories && supplier.categories[0] ? 
+                  supplier.categories[0].name : 'Servicii'}
               </p>
               <p style={{
                 color: '#d1d5db',
@@ -128,7 +158,7 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
             </div>
           )}
           
-          {/* Badges */}
+          {/* Badges pentru disponibilitate */}
           {highlightAvailable && (
             <div style={{
               position: 'absolute',
@@ -145,41 +175,42 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
             </div>
           )}
 
-          {supplier.categories && supplier.categories.length > 0 && (
-  <div style={{
-    position: 'absolute',
-    top: '12px',
-    left: '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px'
-  }}>
-    {supplier.categories.slice(0, 2).map((category, index) => (
-      <div key={category.id || index} style={{
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        color: 'white',
-        padding: '4px 8px',
-        borderRadius: '12px',
-        fontSize: '11px',
-        fontWeight: '600'
-      }}>
-        {category.name}
-      </div>
-    ))}
-    {supplier.categories.length > 2 && (
-      <div style={{
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        color: 'white',
-        padding: '4px 8px',
-        borderRadius: '12px',
-        fontSize: '11px',
-        fontWeight: '600'
-      }}>
-        +{supplier.categories.length - 2} mai multe
-      </div>
-    )}
-  </div>
-)}
+          {/* Badges pentru categorii */}
+          {supplier?.categories && Array.isArray(supplier.categories) && supplier.categories.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '12px',
+              left: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}>
+              {supplier.categories.slice(0, 2).map((category, index) => (
+                <div key={category?.id || index} style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: '600'
+                }}>
+                  {category?.name || 'Categorie'}
+                </div>
+              ))}
+              {supplier.categories.length > 2 && (
+                <div style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: '600'
+                }}>
+                  +{supplier.categories.length - 2} mai multe
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Gallery indicator */}
           {hasGallery && (
@@ -189,68 +220,52 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
               right: '12px',
               backgroundColor: 'rgba(0, 0, 0, 0.7)',
               color: 'white',
-              padding: '4px 8px',
+              padding: '6px 10px',
               borderRadius: '12px',
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: '600',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              cursor: 'pointer'
-            }}
-            onClick={(e) => {
-              e.stopPropagation()
-              openGallery(0)
+              gap: '4px'
             }}>
-              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              +{galleryImages.length}
+              📸 {galleryImages.length}
             </div>
           )}
         </div>
 
         {/* Content Section */}
-        <div style={{ padding: '24px' }}>
-          {/* Business Name */}
+        <div style={{ padding: '20px' }}>
+          {/* Title */}
           <h3 style={{
             fontSize: '1.25rem',
             fontWeight: '700',
             color: '#111827',
             marginBottom: '12px',
-            margin: '0 0 12px 0',
-            lineHeight: '1.3'
+            margin: '0 0 12px 0'
           }}>
-            {supplier.business_name}
+            {supplier?.business_name || 'Furnizor fără nume'}
           </h3>
-          
-          {/* Description - always render with min height */}
-          <div style={{
-            marginBottom: '16px',
-            minHeight: '63px', // 3 lines * 21px line-height
-            display: 'flex',
-            alignItems: 'flex-start'
-          }}>
-            {supplier.description ? (
-              <p style={{
-                color: '#6b7280',
-                fontSize: '14px',
-                lineHeight: '1.5',
-                margin: 0,
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                {supplier.description}
-              </p>
-            ) : null}
-          </div>
+
+          {/* Description */}
+          {supplier?.description && (
+            <p style={{
+              color: '#6b7280',
+              fontSize: '14px',
+              lineHeight: '1.5',
+              marginBottom: '16px',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              margin: '0 0 16px 0'
+            }}>
+              {supplier.description}
+            </p>
+          )}
 
           {/* Details */}
-          <div style={{ marginBottom: '20px' }}>
-            {supplier.address && (
+          <div style={{ marginBottom: '16px' }}>
+            {supplier?.address && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -269,7 +284,7 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
               </div>
             )}
             
-            {supplier.phone && (
+            {supplier?.phone && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -285,7 +300,7 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
               </div>
             )}
             
-            {supplier.price_range && (
+            {supplier?.price_range && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -301,57 +316,59 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
             )}
           </div>
 
-          {/* Action Button */}
-          {showAvailability ? (
-            <Link 
-              href={`/supplier/${supplier.id}`}
-              style={{
-                display: 'block',
-                width: '100%',
-                backgroundColor: '#2563eb',
-                color: 'white',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                fontWeight: '600',
-                textAlign: 'center',
-                textDecoration: 'none',
-                transition: 'all 0.2s ease',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
-            >
-              Vezi detalii
-            </Link>
-          ) : (
-            <Link 
-              href="/login"
-              style={{
-                display: 'block',
-                width: '100%',
-                backgroundColor: '#f3f4f6',
-                color: '#6b7280',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                fontWeight: '600',
-                textAlign: 'center',
-                textDecoration: 'none',
-                transition: 'all 0.2s ease',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#e5e7eb'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#f3f4f6'}
-            >
-              Conectează-te pentru detalii
-            </Link>
-          )}
+          {/* Action Button - FOLOSEȘTE ACEEAȘI LOGICĂ CA PE PAGINA PRINCIPALĂ */}
+          <div style={{ width: '100%' }}>
+            {showAvailability ? (
+              <Link 
+                href={`/supplier/${supplier?.id || ''}`}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  backgroundColor: '#2563eb',
+                  color: 'white',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s ease',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
+              >
+                Vezi detalii
+              </Link>
+            ) : (
+              <Link 
+                href="/login"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  backgroundColor: '#f3f4f6',
+                  color: '#6b7280',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s ease',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#e5e7eb'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+              >
+                Conectează-te pentru detalii
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Gallery Modal */}
-      {showGallery && (
+      {showGallery && galleryImages.length > 0 && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -364,42 +381,40 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
           alignItems: 'center',
           justifyContent: 'center',
           padding: '20px'
-        }}
-        onClick={closeGallery}>
-          <div style={{
+        }}>
+          {/* Close button */}
+          <button
+            onClick={closeGallery}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              cursor: 'pointer',
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10001
+            }}
+          >
+            ✕
+          </button>
+
+          {/* Gallery content */}
+          <div style={{ 
             position: 'relative',
             maxWidth: '90vw',
             maxHeight: '90vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
-          }}
-          onClick={(e) => e.stopPropagation()}>
-            
-            {/* Close button */}
-            <button
-              onClick={closeGallery}
-              style={{
-                position: 'absolute',
-                top: '-50px',
-                right: '0',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '50%',
-                width: '40px',
-                height: '40px',
-                cursor: 'pointer',
-                fontSize: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10001
-              }}
-            >
-              ×
-            </button>
-
+          }}>
             {/* Previous button */}
             {galleryImages.length > 1 && (
               <button
@@ -428,7 +443,7 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
             {/* Current image */}
             <img
               src={galleryImages[currentImageIndex]}
-              alt={`${supplier.business_name} - Imagine ${currentImageIndex + 1}`}
+              alt={`${supplier?.business_name || 'Furnizor'} - Imagine ${currentImageIndex + 1}`}
               style={{
                 maxWidth: '100%',
                 maxHeight: '100%',

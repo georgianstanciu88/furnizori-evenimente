@@ -7,7 +7,8 @@ export default function SearchResults({
   localSuppliers = [], 
   mobileSuppliers = [],
   loading = false,
-  searchCriteria = {}
+  searchCriteria = {},
+  user = null  // ✅ ADAUGĂ ACEST PARAMETRU
 }) {
   const [sortBy, setSortBy] = useState('relevance') // relevance, price, rating, distance
   const [filterBy, setFilterBy] = useState('all') // all, local, mobile
@@ -363,9 +364,10 @@ export default function SearchResults({
               </div>
               
               <SupplierCard 
-                supplier={supplier} 
-                showCategories={true}
-                priority={index < 4} // Priority loading pentru primele 4
+                ssupplier={supplier} 
+  showCategories={true}
+  priority={index < 4}
+  showAvailability={!!user}
               />
             </div>
           )

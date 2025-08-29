@@ -387,6 +387,7 @@ export default function Home() {
                             <SupplierCard 
                               supplier={supplier} 
                               showAvailability={!!user}
+                              user={user}
                             />
                           </div>
                         ))}
@@ -625,6 +626,7 @@ export default function Home() {
                     <SupplierCard 
                       supplier={supplier} 
                       showAvailability={!!user}
+                      user={user}
                     />
                   </div>
                 ))}

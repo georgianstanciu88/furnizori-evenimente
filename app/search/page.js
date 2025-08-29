@@ -692,6 +692,7 @@ export default function Search() {
             localSuppliers={localSuppliers}
             mobileSuppliers={mobileSuppliers}
             loading={loading}
+            user={user}  // ✅ ADAUGĂ această linie
             searchCriteria={{
               date: selectedDate,
               location: selectedLocation,
@@ -702,5 +703,5 @@ export default function Search() {
         )}
       </div>
     </div>
-  )
-}
+  )  // ✅ Asigură-te că există această paranteză
+}    // ✅ Și această paranteză
