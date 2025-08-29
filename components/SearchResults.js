@@ -364,7 +364,7 @@ export default function SearchResults({
               </div>
               
               <SupplierCard 
-                ssupplier={supplier} 
+                supplier={supplier} 
   showCategories={true}
   priority={index < 4}
   showAvailability={!!user}

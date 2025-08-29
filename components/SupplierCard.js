@@ -1,5 +1,3 @@
-// FOLOSEȘTE EXACT ACEEAȘI LOGICĂ CA PE PAGINA PRINCIPALĂ (NU parametrul user)
-
 'use client'
 import React, { useState } from 'react'
 import Link from 'next/link'
@@ -18,7 +16,7 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
         padding: '20px',
         textAlign: 'center',
         color: '#9ca3af',
-        minHeight: '200px',
+        minHeight: '480px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -76,7 +74,10 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
         overflow: 'hidden',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
         transition: 'all 0.3s ease',
-        cursor: 'pointer'
+        cursor: 'pointer',
+        minHeight: '480px', // ✅ ÎNĂLȚIME FIXĂ PENTRU UNIFORMITATE
+        display: 'flex',
+        flexDirection: 'column'
       }}
       onMouseOver={(e) => {
         e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
@@ -87,11 +88,11 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
         e.currentTarget.style.transform = 'translateY(0)'
       }}>
         
-        {/* Image Section */}
+        {/* Image Section - ÎNĂLȚIME FIXĂ */}
         <div style={{
           position: 'relative',
           width: '100%',
-          height: '240px',
+          height: '200px', // Înălțime fixă pentru imagine
           backgroundColor: '#f3f4f6',
           overflow: 'hidden'
         }}>
@@ -233,38 +234,50 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
           )}
         </div>
 
-        {/* Content Section */}
-        <div style={{ padding: '20px' }}>
-          {/* Title */}
+        {/* Content Section - FLEX PENTRU A OCUPA SPAȚIUL RĂMAS */}
+        <div style={{ 
+          padding: '20px',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {/* Title - ÎNĂLȚIME FIXĂ */}
           <h3 style={{
             fontSize: '1.25rem',
             fontWeight: '700',
             color: '#111827',
             marginBottom: '12px',
-            margin: '0 0 12px 0'
+            margin: '0 0 12px 0',
+            minHeight: '30px', // Înălțime minimă pentru titlu
+            lineHeight: '1.2'
           }}>
             {supplier?.business_name || 'Furnizor fără nume'}
           </h3>
 
-          {/* Description */}
-          {supplier?.description && (
-            <p style={{
-              color: '#6b7280',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              marginBottom: '16px',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              margin: '0 0 16px 0'
-            }}>
-              {supplier.description}
-            </p>
-          )}
+          {/* Description - ÎNTOTDEAUNA AFIȘATĂ CU ÎNĂLȚIME FIXĂ PE 3 RÂNDURI */}
+          <div style={{
+            color: '#6b7280',
+            fontSize: '14px',
+            lineHeight: '1.5',
+            marginBottom: '16px',
+            height: '63px', // Înălțime exactă pentru 3 rânduri (14px * 1.5 * 3)
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            margin: '0 0 16px 0'
+          }}>
+            {supplier?.description || 'Furnizor profesionist pentru evenimente. Contactează-ne pentru a afla mai multe detalii despre serviciile noastre și pentru a primi o ofertă personalizată pentru evenimentul tău.'}
+          </div>
 
-          {/* Details */}
-          <div style={{ marginBottom: '16px' }}>
+          {/* Details - OCUPĂ SPAȚIUL DISPONIBIL */}
+          <div style={{ 
+            marginBottom: '16px',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start'
+          }}>
             {supplier?.address && (
               <div style={{
                 display: 'flex',
@@ -316,8 +329,11 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
             )}
           </div>
 
-          {/* Action Button - FOLOSEȘTE ACEEAȘI LOGICĂ CA PE PAGINA PRINCIPALĂ */}
-          <div style={{ width: '100%' }}>
+          {/* Action Button - ÎNTOTDEAUNA LA ACELAȘI LOC */}
+          <div style={{ 
+            width: '100%',
+            marginTop: 'auto' // Împinge butonul în jos
+          }}>
             {showAvailability ? (
               <Link 
                 href={`/supplier/${supplier?.id || ''}`}
