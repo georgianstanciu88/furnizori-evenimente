@@ -342,7 +342,7 @@ export default function SupplierProfile() {
                         key={index}
                         style={{
                           position: 'relative',
-                          borderRadius: '8px',
+                          borderRadius: '12px',
                           overflow: 'hidden',
                           cursor: 'pointer',
                           border: '2px solid transparent',
@@ -405,14 +405,16 @@ export default function SupplierProfile() {
                 </div>
 
                 {supplier.description ? (
-  <p style={{
-    color: '#374151',
-    fontSize: '16px',
-    lineHeight: '1.6',
-    margin: 0
-  }}>
-    {supplier.description}
-  </p>
+  <div 
+    data-description
+    style={{
+      color: '#374151',
+      fontSize: '16px',
+      lineHeight: '1.6',
+      margin: 0
+    }}
+    dangerouslySetInnerHTML={{ __html: supplier.description }}
+  />
 ) : (
   <p style={{
     color: '#9ca3af',
@@ -462,7 +464,7 @@ export default function SupplierProfile() {
                           padding: '6px 12px',
                           backgroundColor: '#eff6ff',
                           color: '#1d4ed8',
-                          borderRadius: '8px',
+                          borderRadius: '12px',
                           fontSize: '14px',
                           fontWeight: '600'
                         }}
@@ -571,7 +573,7 @@ export default function SupplierProfile() {
                         width: '32px',
                         height: '32px',
                         backgroundColor: '#f0fdf4',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
@@ -599,7 +601,7 @@ export default function SupplierProfile() {
                         width: '32px',
                         height: '32px',
                         backgroundColor: '#fef3c7',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
@@ -691,7 +693,7 @@ export default function SupplierProfile() {
                   <div style={{
                     padding: '16px',
                     backgroundColor: '#f0fdf4',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     textAlign: 'center'
                   }}>
                     <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎉</div>
@@ -792,7 +794,7 @@ export default function SupplierProfile() {
                 maxWidth: '100%',
                 maxHeight: '100%',
                 objectFit: 'contain',
-                borderRadius: '8px'
+                borderRadius: '12px'
               }}
             />
 
@@ -903,7 +905,7 @@ export default function SupplierProfile() {
               <div style={{
                 marginBottom: '20px',
                 padding: '12px 16px',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 backgroundColor: contactMessage.type === 'success' ? '#f0fdf4' : '#fef2f2',
                 border: `1px solid ${contactMessage.type === 'success' ? '#16a34a' : '#dc2626'}`,
                 color: contactMessage.type === 'success' ? '#15803d' : '#dc2626',
@@ -936,7 +938,7 @@ export default function SupplierProfile() {
                       width: '100%',
                       padding: '12px 16px',
                       border: '1px solid #d1d5db',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       fontSize: '14px',
                       outline: 'none',
                       boxSizing: 'border-box'
@@ -969,7 +971,7 @@ export default function SupplierProfile() {
                         width: '100%',
                         padding: '12px 16px',
                         border: '1px solid #d1d5db',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         fontSize: '14px',
                         outline: 'none',
                         boxSizing: 'border-box'
@@ -996,7 +998,7 @@ export default function SupplierProfile() {
                         width: '100%',
                         padding: '12px 16px',
                         border: '1px solid #d1d5db',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         fontSize: '14px',
                         outline: 'none',
                         boxSizing: 'border-box'
@@ -1024,7 +1026,7 @@ export default function SupplierProfile() {
                       width: '100%',
                       padding: '12px 16px',
                       border: '1px solid #d1d5db',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       fontSize: '14px',
                       outline: 'none',
                       boxSizing: 'border-box'
@@ -1052,7 +1054,7 @@ export default function SupplierProfile() {
                       width: '100%',
                       padding: '12px 16px',
                       border: '1px solid #d1d5db',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       fontSize: '14px',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1078,7 +1080,7 @@ export default function SupplierProfile() {
                       backgroundColor: '#f3f4f6',
                       color: '#374151',
                       border: 'none',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       fontWeight: '600',
                       cursor: 'pointer',
                       transition: 'background-color 0.2s'
@@ -1097,7 +1099,7 @@ export default function SupplierProfile() {
                       backgroundColor: contactLoading ? '#9ca3af' : '#2563eb',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       fontWeight: '600',
                       cursor: contactLoading ? 'not-allowed' : 'pointer',
                       transition: 'background-color 0.2s',

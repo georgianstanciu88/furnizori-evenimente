@@ -261,7 +261,7 @@ export default function Register() {
         }
         
         .register-title {
-          font-size: 1.5rem !important;
+          font-size: 2rem !important;
         }
         
         .benefits-grid {

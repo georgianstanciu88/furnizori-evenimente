@@ -153,7 +153,7 @@ export default function Login() {
         }
         
         .login-title {
-          font-size: 1.5rem !important;
+          font-size: 2rem !important;
         }
         
         .footer-links {

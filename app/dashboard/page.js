@@ -4,6 +4,9 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Calendar from '@/components/Calendar'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -14,6 +17,22 @@ export default function Dashboard() {
   const [unavailableDates, setUnavailableDates] = useState([])
   const [supplierId, setSupplierId] = useState(null)
   const [undoAction, setUndoAction] = useState(null) // Pentru undo functionality
+
+  // Funcție pentru a extrage textul simplu din HTML
+  const extractPlainText = (html) => {
+    if (!html) return ''
+    
+    // Dacă conține HTML (tag-uri)
+    if (html.includes('<') && html.includes('>')) {
+      // Creăm un element temporar pentru a extrage textul
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = html
+      return tempDiv.textContent || tempDiv.innerText || ''
+    }
+    
+    // Dacă este deja text simplu
+    return html
+  }
 
   useEffect(() => {
     checkUser()
@@ -183,6 +202,180 @@ export default function Dashboard() {
     setUndoAction(null)
   }
 
+  // Funcție pentru generare raport PDF
+  async function generatePDFReport() {
+    if (unavailableDates.length === 0) {
+      alert('Nu există date indisponibile pentru raport!')
+      return
+    }
+
+    const pdf = new jsPDF()
+    
+    // Header
+    pdf.setFontSize(20)
+    pdf.setTextColor(40, 40, 40)
+    pdf.text('RAPORT DATE INDISPONIBILE', 20, 30)
+    
+    // Informații furnizor
+    pdf.setFontSize(12)
+    pdf.setTextColor(100, 100, 100)
+    pdf.text(`Furnizor: ${supplierProfile?.business_name || 'Furnizor'}`, 20, 45)
+    pdf.text(`Generat pe: ${new Date().toLocaleDateString('ro-RO', {
+      year: 'numeric',
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, 20, 55)
+    pdf.text(`Total zile indisponibile: ${unavailableDates.length}`, 20, 65)
+
+    // Linie separatoare
+    pdf.setLineWidth(0.5)
+    pdf.setDrawColor(200, 200, 200)
+    pdf.line(20, 75, 190, 75)
+
+    // Tabel cu datele
+    const tableData = unavailableDates
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map((date, index) => [
+        index + 1,
+        new Date(date.date).toLocaleDateString('ro-RO', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        new Date(date.date).toLocaleDateString('ro-RO')
+      ])
+
+    // Statistici pe luni
+    const monthlyStats = unavailableDates.reduce((acc, date) => {
+      const monthYear = new Date(date.date).toLocaleDateString('ro-RO', {
+        year: 'numeric',
+        month: 'long'
+      })
+      acc[monthYear] = (acc[monthYear] || 0) + 1
+      return acc
+    }, {})
+
+    autoTable(pdf, {
+      startY: 85,
+      head: [['Nr.', 'Data Completă', 'Data Scurtă']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [37, 99, 235],
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        fontSize: 9,
+        textColor: [60, 60, 60]
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      },
+      margin: { left: 20, right: 20 },
+      didDrawPage: function(data) {
+        // Se execută după ce tabelul este desenat
+        let yPos = data.cursor.y + 20
+        pdf.setFontSize(14)
+        pdf.setTextColor(40, 40, 40)
+        pdf.text('STATISTICI PE LUNI:', 20, yPos)
+        
+        yPos += 15
+        pdf.setFontSize(10)
+        Object.entries(monthlyStats).forEach(([month, count]) => {
+          pdf.text(`• ${month}: ${count} ${count === 1 ? 'zi' : 'zile'}`, 25, yPos)
+          yPos += 8
+        })
+      }
+    })
+
+    // Footer
+    const pageCount = pdf.internal.getNumberOfPages()
+    pdf.setFontSize(8)
+    pdf.setTextColor(150, 150, 150)
+    pdf.text('Generat de EventPro - eventpro.ro', 20, 290)
+    pdf.text(`Pagina ${pageCount}`, 180, 290)
+
+    // Salvare
+    const fileName = `Date_Indisponibile_${supplierProfile?.business_name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Furnizor'}_${new Date().toISOString().split('T')[0]}.pdf`
+    pdf.save(fileName)
+  }
+
+  // Funcție pentru generare raport Excel
+  async function generateExcelReport() {
+    if (unavailableDates.length === 0) {
+      alert('Nu există date indisponibile pentru raport!')
+      return
+    }
+
+    // Pregătește datele pentru Excel
+    const excelData = unavailableDates
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map((date, index) => ({
+        'Nr.': index + 1,
+        'Data Completă': new Date(date.date).toLocaleDateString('ro-RO', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        'Data (DD/MM/YYYY)': new Date(date.date).toLocaleDateString('ro-RO'),
+        'Ziua Săptămânii': new Date(date.date).toLocaleDateString('ro-RO', { weekday: 'long' }),
+        'Luna': new Date(date.date).toLocaleDateString('ro-RO', { month: 'long' }),
+        'Anul': new Date(date.date).getFullYear(),
+        'Notițe': '' // Câmp gol pentru notițele furnizorului
+      }))
+
+    // Informații header
+    const headerInfo = [
+      { 'RAPORT DATE INDISPONIBILE': '' },
+      { 'Furnizor:': supplierProfile?.business_name || 'Furnizor' },
+      { 'Generat pe:': new Date().toLocaleDateString('ro-RO', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })},
+      { 'Total zile:': unavailableDates.length },
+      { '': '' } // Rând gol
+    ]
+
+    // Statistici pe luni
+    const monthlyStats = unavailableDates.reduce((acc, date) => {
+      const monthYear = new Date(date.date).toLocaleDateString('ro-RO', {
+        year: 'numeric',
+        month: 'long'
+      })
+      acc[monthYear] = (acc[monthYear] || 0) + 1
+      return acc
+    }, {})
+
+    const statsData = Object.entries(monthlyStats).map(([month, count]) => ({
+      'Luna': month,
+      'Zile Indisponibile': count
+    }))
+
+    // Creează workbook
+    const wb = XLSX.utils.book_new()
+
+    // Sheet 1: Date indisponibile
+    const ws1 = XLSX.utils.json_to_sheet([...headerInfo, ...excelData])
+    XLSX.utils.book_append_sheet(wb, ws1, 'Date Indisponibile')
+
+    // Sheet 2: Statistici
+    const ws2 = XLSX.utils.json_to_sheet(statsData)
+    XLSX.utils.book_append_sheet(wb, ws2, 'Statistici pe Luni')
+
+    // Salvare
+    const fileName = `Date_Indisponibile_${supplierProfile?.business_name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Furnizor'}_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }
+
   // Funcție pentru toast notifications
   function showToast(message, type) {
     // În loc de alert, poți implementa un sistem de toast
@@ -315,7 +508,7 @@ export default function Dashboard() {
                 width: '32px',
                 height: '32px',
                 backgroundColor: '#eff6ff',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
@@ -392,7 +585,7 @@ export default function Dashboard() {
                   width: '32px',
                   height: '32px',
                   backgroundColor: '#f0fdf4',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -449,7 +642,7 @@ export default function Dashboard() {
   overflow: 'hidden',
   textOverflow: 'ellipsis'
 }}>
-  {supplierProfile.description}
+  {extractPlainText(supplierProfile.description)}
 </div>
                     </div>
                   )}
@@ -461,7 +654,7 @@ export default function Dashboard() {
                       backgroundColor: '#2563eb',
                       color: 'white',
                       padding: '8px 16px',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       textDecoration: 'none',
                       fontWeight: '600',
                       fontSize: '14px',
@@ -506,7 +699,7 @@ export default function Dashboard() {
                       backgroundColor: '#16a34a',
                       color: 'white',
                       padding: '10px 20px',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       textDecoration: 'none',
                       fontWeight: '600',
                       fontSize: '14px',
@@ -541,7 +734,7 @@ export default function Dashboard() {
                   width: '32px',
                   height: '32px',
                   backgroundColor: '#fef3c7',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -578,12 +771,12 @@ export default function Dashboard() {
                     transition: 'all 0.2s'
                   }}
                   onMouseOver={(e) => {
-                    e.target.style.backgroundColor = '#dbeafe'
-                    e.target.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.backgroundColor = '#dbeafe'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
                   }}
                   onMouseOut={(e) => {
-                    e.target.style.backgroundColor = '#eff6ff'
-                    e.target.style.transform = 'translateY(0)'
+                    e.currentTarget.style.backgroundColor = '#eff6ff'
+                    e.currentTarget.style.transform = 'translateY(0)'
                   }}
                 >
                   <div style={{
@@ -593,13 +786,15 @@ export default function Dashboard() {
                     borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    pointerEvents: 'none'
                   }}>
-                    <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24">
+                    <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24"
+                         style={{ pointerEvents: 'none' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <div>
+                  <div style={{ pointerEvents: 'none' }}>
                     <div style={{
                       fontSize: '14px',
                       fontWeight: '600',
@@ -630,12 +825,12 @@ export default function Dashboard() {
                     transition: 'all 0.2s'
                   }}
                   onMouseOver={(e) => {
-                    e.target.style.backgroundColor = '#dcfce7'
-                    e.target.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.backgroundColor = '#dcfce7'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
                   }}
                   onMouseOut={(e) => {
-                    e.target.style.backgroundColor = '#f0fdf4'
-                    e.target.style.transform = 'translateY(0)'
+                    e.currentTarget.style.backgroundColor = '#f0fdf4'
+                    e.currentTarget.style.transform = 'translateY(0)'
                   }}
                 >
                   <div style={{
@@ -645,13 +840,15 @@ export default function Dashboard() {
                     borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    pointerEvents: 'none'
                   }}>
-                    <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24">
+                    <svg width="14" height="14" fill="none" stroke="white" viewBox="0 0 24 24"
+                         style={{ pointerEvents: 'none' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
                   </div>
-                  <div>
+                  <div style={{ pointerEvents: 'none' }}>
                     <div style={{
                       fontSize: '14px',
                       fontWeight: '600',
@@ -689,7 +886,7 @@ export default function Dashboard() {
                 width: '32px',
                 height: '32px',
                 backgroundColor: '#fef2f2',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
@@ -717,7 +914,7 @@ export default function Dashboard() {
                 textAlign: 'center',
                 padding: '12px',
                 backgroundColor: '#f8fafc',
-                borderRadius: '8px'
+                borderRadius: '12px'
               }}>
                 <div style={{
                   fontSize: '1.25rem',
@@ -738,7 +935,7 @@ export default function Dashboard() {
                 textAlign: 'center',
                 padding: '12px',
                 backgroundColor: '#f8fafc',
-                borderRadius: '8px'
+                borderRadius: '12px'
               }}>
                 <div style={{
                   fontSize: '1.25rem',
@@ -761,7 +958,7 @@ export default function Dashboard() {
               marginTop: '16px',
               padding: '12px',
               backgroundColor: '#f0f9ff',
-              borderRadius: '8px',
+              borderRadius: '12px',
               border: '1px solid #0ea5e9'
             }}>
               <div style={{
@@ -797,7 +994,7 @@ export default function Dashboard() {
                   width: '32px',
                   height: '32px',
                   backgroundColor: '#fef2f2',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -852,7 +1049,7 @@ export default function Dashboard() {
                   width: '32px',
                   height: '32px',
                   backgroundColor: '#fef2f2',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -897,7 +1094,7 @@ export default function Dashboard() {
                       justifyContent: 'space-between',
                       padding: '12px 16px',
                       backgroundColor: '#fef2f2',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       border: '1px solid #fecaca'
                     }}
                   >
@@ -970,12 +1167,139 @@ export default function Dashboard() {
                 ))}
               </div>
 
+              {/* Butoane Download Raport */}
+              <div style={{
+                marginTop: '20px',
+                padding: '20px',
+                backgroundColor: '#f8fafc',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <svg width="20" height="20" fill="none" stroke="#475569" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <h3 style={{
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: '#334155',
+                    margin: 0
+                  }}>
+                    Descarcă Raport
+                  </h3>
+                </div>
+                
+                <p style={{
+                  fontSize: '14px',
+                  color: '#64748b',
+                  marginBottom: '16px',
+                  margin: '0 0 16px 0',
+                  lineHeight: '1.4'
+                }}>
+                  Exportează lista datelor indisponibile pentru evidența ta personală sau pentru partajare cu clienții.
+                </p>
+
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={generatePDFReport}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 16px',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = '#b91c1c'
+                      e.target.style.transform = 'translateY(-1px)'
+                      e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = '#dc2626'
+                      e.target.style.transform = 'translateY(0)'
+                      e.target.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                    }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ pointerEvents: 'none' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Raport PDF
+                  </button>
+
+                  <button
+                    onClick={generateExcelReport}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 16px',
+                      backgroundColor: '#16a34a',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.backgroundColor = '#15803d'
+                      e.target.style.transform = 'translateY(-1px)'
+                      e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.backgroundColor = '#16a34a'
+                      e.target.style.transform = 'translateY(0)'
+                      e.target.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                    }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ pointerEvents: 'none' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Raport Excel
+                  </button>
+                </div>
+
+                <div style={{
+                  marginTop: '12px',
+                  fontSize: '12px',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '6px'
+                }}>
+                  <span style={{ marginTop: '1px' }}>ℹ️</span>
+                  <div>
+                    <strong>PDF:</strong> Raport vizual pentru imprimare sau partajare cu clienții<br />
+                    <strong>Excel:</strong> Date editabile cu posibilitate de adăugare notițe personale
+                  </div>
+                </div>
+              </div>
+
               {unavailableDates.length > 5 && (
                 <div style={{
                   marginTop: '16px',
                   padding: '12px 16px',
                   backgroundColor: '#f0f9ff',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   border: '1px solid #0ea5e9'
                 }}>
                   <div style={{
@@ -1008,11 +1332,11 @@ export default function Dashboard() {
         }
         
         .dashboard-title {
-          font-size: 1.5rem !important;
+          font-size: 2rem !important;
         }
         
         .dashboard-subtitle {
-          font-size: 0.875rem !important;
+          font-size: 1rem !important;
         }
         
         .dashboard-grid {
@@ -1036,11 +1360,11 @@ export default function Dashboard() {
           }
           
           .dashboard-title {
-            font-size: 2rem !important;
+            font-size: 2.5rem !important;
           }
           
           .dashboard-subtitle {
-            font-size: 1rem !important;
+            font-size: 1.125rem !important;
           }
           
           .dashboard-grid {
@@ -1064,11 +1388,11 @@ export default function Dashboard() {
           }
           
           .dashboard-title {
-            font-size: 2.5rem !important;
+            font-size: 3rem !important;
           }
           
           .dashboard-subtitle {
-            font-size: 1.125rem !important;
+            font-size: 1.25rem !important;
           }
           
           .dashboard-grid {

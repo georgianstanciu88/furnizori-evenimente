@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import LocationPicker from '@/components/LocationPicker'
+import LexicalEditor from '@/components/LexicalEditor'
 
 export default function Profile() {
   const router = useRouter()
@@ -104,7 +105,41 @@ export default function Profile() {
       .from('categories')
       .select('*')
       .order('name')
-    setCategories(data || [])
+    
+    // Ordinea dorită pentru categorii
+    const desiredOrder = [
+      'Locații',
+      'Muzică', 
+      'Fotografie',
+      'Videografie',
+      'Torturi și prăjituri',
+      'Catering și băuturi',
+      'Decorațiuni',
+      'Flori',
+      'Invitații',
+      'Ursitoare',
+      'Alte servicii'
+    ]
+    
+    // Sortez categoriile conform ordinii dorite
+    const sortedCategories = (data || []).sort((a, b) => {
+      const indexA = desiredOrder.indexOf(a.name)
+      const indexB = desiredOrder.indexOf(b.name)
+      
+      // Dacă ambele sunt în lista dorită, sortez după poziție
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB
+      }
+      
+      // Dacă doar una este în lista dorită, o pun pe aceea prima
+      if (indexA !== -1) return -1
+      if (indexB !== -1) return 1
+      
+      // Dacă niciuna nu e în lista dorită, sortez alfabetic
+      return a.name.localeCompare(b.name, 'ro')
+    })
+    
+    setCategories(sortedCategories)
   }
 
   async function fetchSupplierCategories(supplierId) {
@@ -397,7 +432,7 @@ export default function Profile() {
           padding: '32px',
           marginBottom: '32px'
         }}>
-          <h1 style={{
+          <h1 className="profile-title" style={{
             fontSize: '2.5rem',
             fontWeight: '800',
             marginBottom: '8px',
@@ -440,7 +475,184 @@ export default function Profile() {
           gap: '32px'
         }}>
           
-          {/* Location Section - NOUĂ */}
+          {/* 1. Business Information Form - PRIMA SECȚIUNE */}
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '32px',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '24px'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                backgroundColor: '#f0f9ff',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg width="20" height="20" fill="none" stroke="#0369a1" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#111827',
+                margin: 0
+              }}>
+                Informații Afacere
+              </h2>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr',
+              gap: '20px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  Numele afacerii *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.business_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '12px',
+                    fontSize: '16px',
+                    transition: 'all 0.2s',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="Ex: Studio Foto Magic Moments"
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#2563eb'
+                    e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#d1d5db'
+                    e.target.style.boxShadow = 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
+                  Descrierea serviciilor
+                </label>
+                <LexicalEditor
+                  value={formData.description}
+                  onChange={(content) => setFormData(prev => ({ ...prev, description: content }))}
+                  placeholder="Descrie serviciile tale, experiența și ce te face special..."
+                />
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '20px'
+              }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Telefon *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '12px',
+                      fontSize: '16px',
+                      transition: 'all 0.2s',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="07xx xxx xxx"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#2563eb'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Interval de preț
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.price_range}
+                    onChange={(e) => setFormData(prev => ({ ...prev, price_range: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '12px',
+                      fontSize: '16px',
+                      transition: 'all 0.2s',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Ex: 500-2000 lei"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#2563eb'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Location Section - A DOUA SECȚIUNE */}
           <div style={{
             backgroundColor: 'white',
             borderRadius: '16px',
@@ -496,222 +708,7 @@ export default function Profile() {
             />
           </div>
 
-          {/* Travel Options Section - NOUĂ */}
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            padding: '32px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '24px'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                backgroundColor: '#f0fdf4',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg width="20" height="20" fill="none" stroke="#16a34a" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m-6 3l6-3" />
-                </svg>
-              </div>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                color: '#111827',
-                margin: 0
-              }}>
-                Opțiuni Deplasare
-              </h2>
-            </div>
-
-            <p style={{
-              color: '#6b7280',
-              fontSize: '14px',
-              marginBottom: '20px',
-              lineHeight: '1.5'
-            }}>
-              Specifică dacă poți să te deplasezi în alte localități pentru serviciile tale.
-            </p>
-
-            {/* Verificare dacă categoriile permit mobilitatea */}
-            {!canBeAvailableForTravel() && selectedCategories.length > 0 && (
-              <div style={{
-                padding: '16px',
-                backgroundColor: '#fef3c7',
-                borderRadius: '12px',
-                marginBottom: '20px',
-                border: '1px solid #fbbf24'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '8px'
-                }}>
-                  <span style={{ fontSize: '20px' }}>🏢</span>
-                  <span style={{
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#92400e'
-                  }}>
-                    Categoriile selectate nu permit deplasarea
-                  </span>
-                </div>
-                <p style={{
-                  fontSize: '14px',
-                  color: '#92400e',
-                  lineHeight: '1.5',
-                  margin: 0
-                }}>
-                  Categoriile ca "Locații", "Localuri" sau "Săli de evenimente" sunt considerate fixe și nu se pot deplasa.
-                </p>
-              </div>
-            )}
-
-            {/* Toggle pentru disponibilitate deplasare */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              marginBottom: '20px',
-              padding: '16px',
-              backgroundColor: availableForTravel ? '#f0fdf4' : '#f9fafb',
-              borderRadius: '12px',
-              border: `1px solid ${availableForTravel ? '#bbf7d0' : '#e5e7eb'}`,
-              cursor: canBeAvailableForTravel() ? 'pointer' : 'not-allowed',
-              opacity: canBeAvailableForTravel() ? 1 : 0.6
-            }}
-            onClick={() => {
-              if (canBeAvailableForTravel()) {
-                setAvailableForTravel(!availableForTravel)
-              }
-            }}>
-              <div style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '4px',
-                border: '2px solid',
-                borderColor: availableForTravel ? '#16a34a' : '#d1d5db',
-                backgroundColor: availableForTravel ? '#16a34a' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s'
-              }}>
-                {availableForTravel && (
-                  <svg width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-              <div>
-                <div style={{
-                  fontWeight: '600',
-                  color: '#111827',
-                  fontSize: '16px'
-                }}>
-                  Sunt disponibil pentru deplasare
-                </div>
-                <div style={{
-                  fontSize: '14px',
-                  color: '#6b7280',
-                  marginTop: '2px'
-                }}>
-                  Accept să mă deplasez în alte localități pentru serviciile mele
-                </div>
-              </div>
-            </div>
-
-            {/* Raza de deplasare - doar dacă este disponibil pentru deplasare */}
-            {availableForTravel && (
-              <div style={{
-                padding: '20px',
-                backgroundColor: '#f8fafc',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0'
-              }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '12px'
-                }}>
-                  Raza maximă de deplasare
-                </label>
-                
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  marginBottom: '12px'
-                }}>
-                  <input
-                    type="range"
-                    min="10"
-                    max="200"
-                    step="10"
-                    value={travelRadius}
-                    onChange={(e) => setTravelRadius(parseInt(e.target.value))}
-                    style={{
-                      flex: 1,
-                      height: '8px',
-                      borderRadius: '5px',
-                      background: '#e2e8f0',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  />
-                  <div style={{
-                    minWidth: '80px',
-                    textAlign: 'center',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: '#16a34a',
-                    backgroundColor: 'white',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '2px solid #16a34a'
-                  }}>
-                    {travelRadius} km
-                  </div>
-                </div>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '12px',
-                  color: '#6b7280'
-                }}>
-                  <span>10 km</span>
-                  <span>200+ km</span>
-                </div>
-                
-                <p style={{
-                  fontSize: '13px',
-                  color: '#6b7280',
-                  marginTop: '8px',
-                  margin: '8px 0 0 0',
-                  textAlign: 'center'
-                }}>
-                  {travelRadius <= 30 ? '🏘️ Zona locală' : 
-                   travelRadius <= 80 ? '🏙️ Zona județeană' :
-                   travelRadius <= 150 ? '🌆 Zona regională' : '🗺️ Național'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Categories Section */}
+          {/* 3. Categories Section cu Travel Options - A TREIA SECȚIUNE */}
           <div style={{
             backgroundColor: 'white',
             borderRadius: '16px',
@@ -760,7 +757,8 @@ export default function Profile() {
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: '12px'
+              gap: '12px',
+              marginBottom: '32px'
             }}>
               {categories.map(category => {
                 const isSelected = selectedCategories.includes(category.id)
@@ -784,14 +782,14 @@ export default function Profile() {
                     }}
                     onMouseOver={(e) => {
                       if (!isSelected) {
-                        e.target.style.borderColor = '#9ca3af'
-                        e.target.style.backgroundColor = '#f9fafb'
+                        e.currentTarget.style.borderColor = '#9ca3af'
+                        e.currentTarget.style.backgroundColor = '#f9fafb'
                       }
                     }}
                     onMouseOut={(e) => {
                       if (!isSelected) {
-                        e.target.style.borderColor = '#e5e7eb'
-                        e.target.style.backgroundColor = 'white'
+                        e.currentTarget.style.borderColor = '#e5e7eb'
+                        e.currentTarget.style.backgroundColor = 'white'
                       }
                     }}
                   >
@@ -805,57 +803,263 @@ export default function Profile() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      pointerEvents: 'none'
                     }}>
                       {isSelected && (
-                        <svg width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24">
+                        <svg width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24" style={{ pointerEvents: 'none' }}>
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
                       )}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <span style={{
-                        fontWeight: '600',
-                        color: isSelected ? '#1d4ed8' : '#374151',
-                        fontSize: '14px'
+                    <div style={{ flex: 1, pointerEvents: 'none' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        flexWrap: 'wrap'
                       }}>
-                        {category.name}
-                      </span>
-                      {isFixed && (
-                        <div style={{
-                          fontSize: '12px',
-                          color: '#6b7280',
-                          marginTop: '2px'
+                        <span style={{
+                          fontWeight: '600',
+                          color: isSelected ? '#1d4ed8' : '#374151',
+                          fontSize: '14px',
+                          pointerEvents: 'none'
                         }}>
-                          🏢 Serviciu fix (nu se deplasează)
-                        </div>
-                      )}
+                          {category.name}
+                        </span>
+                        {isFixed && (
+                          <span style={{
+                            fontSize: '11px',
+                            color: '#6b7280',
+                            fontWeight: '500',
+                            pointerEvents: 'none',
+                            alignSelf: 'center'
+                          }}>
+                          (Nu permite deplasare)
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
               })}
             </div>
 
-            {selectedCategories.length > 0 && (
+
+            {/* Opțiuni Deplasare - INTEGRAT ÎN CATEGORII */}
+            <div style={{
+              borderTop: '1px solid #e5e7eb',
+              paddingTop: '32px'
+            }}>
               <div style={{
-                marginTop: '20px',
-                padding: '16px 20px',
-                backgroundColor: '#f0fdf4',
-                borderRadius: '12px',
-                border: '1px solid #bbf7d0'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '24px'
               }}>
                 <div style={{
-                  fontSize: '14px',
-                  color: '#15803d',
-                  fontWeight: '600'
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: '#f0fdf4',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}>
-                  ✅ {selectedCategories.length} categorie{selectedCategories.length > 1 ? 'i' : ''} selectată{selectedCategories.length > 1 ? '' : 'ă'}
+                  <svg width="20" height="20" fill="none" stroke="#16a34a" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m-6 3l6-3" />
+                  </svg>
+                </div>
+                <h3 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  color: '#111827',
+                  margin: 0
+                }}>
+                  Opțiuni Deplasare
+                </h3>
+              </div>
+
+              <p style={{
+                color: '#6b7280',
+                fontSize: '14px',
+                marginBottom: '20px',
+                lineHeight: '1.5'
+              }}>
+                Specifică dacă poți să te deplasezi în alte localități pentru serviciile tale.
+              </p>
+
+              {/* Verificare dacă categoriile permit mobilitatea */}
+              {!canBeAvailableForTravel() && selectedCategories.length > 0 && (
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#fef3c7',
+                  borderRadius: '12px',
+                  marginBottom: '20px',
+                  border: '1px solid #fbbf24'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <span style={{ fontSize: '20px' }}>🏢</span>
+                    <span style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#92400e'
+                    }}>
+                      Categoriile selectate nu permit deplasarea
+                    </span>
+                  </div>
+                  <p style={{
+                    fontSize: '14px',
+                    color: '#92400e',
+                    lineHeight: '1.5',
+                    margin: 0
+                  }}>
+                    Categoriile ca "Locații", "Localuri" sau "Săli de evenimente" sunt considerate fixe și nu se pot deplasa.
+                  </p>
+                </div>
+              )}
+
+              {/* Toggle pentru disponibilitate deplasare */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                marginBottom: '20px',
+                padding: '16px',
+                backgroundColor: availableForTravel ? '#f0fdf4' : '#f9fafb',
+                borderRadius: '12px',
+                border: `1px solid ${availableForTravel ? '#bbf7d0' : '#e5e7eb'}`,
+                cursor: canBeAvailableForTravel() ? 'pointer' : 'not-allowed',
+                opacity: canBeAvailableForTravel() ? 1 : 0.6
+              }}
+              onClick={() => {
+                if (canBeAvailableForTravel()) {
+                  setAvailableForTravel(!availableForTravel)
+                }
+              }}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '4px',
+                  border: '2px solid',
+                  borderColor: availableForTravel ? '#16a34a' : '#d1d5db',
+                  backgroundColor: availableForTravel ? '#16a34a' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s'
+                }}>
+                  {availableForTravel && (
+                    <svg width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <div style={{
+                    fontWeight: '600',
+                    color: '#111827',
+                    fontSize: '16px'
+                  }}>
+                    Sunt disponibil pentru deplasare
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#6b7280',
+                    marginTop: '2px'
+                  }}>
+                    Accept să mă deplasez în alte localități pentru serviciile mele
+                  </div>
                 </div>
               </div>
-            )}
+
+              {/* Raza de deplasare - doar dacă este disponibil pentru deplasare */}
+              {availableForTravel && (
+                <div style={{
+                  padding: '20px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '12px'
+                  }}>
+                    Raza maximă de deplasare
+                  </label>
+                  
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '12px'
+                  }}>
+                    <input
+                      type="range"
+                      min="10"
+                      max="200"
+                      step="10"
+                      value={travelRadius}
+                      onChange={(e) => setTravelRadius(parseInt(e.target.value))}
+                      style={{
+                        flex: 1,
+                        height: '8px',
+                        borderRadius: '5px',
+                        background: '#e2e8f0',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    />
+                    <div style={{
+                      minWidth: '80px',
+                      textAlign: 'center',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#16a34a',
+                      backgroundColor: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '12px',
+                      border: '2px solid #16a34a'
+                    }}>
+                      {travelRadius} km
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '12px',
+                    color: '#6b7280'
+                  }}>
+                    <span>10 km</span>
+                    <span>200+ km</span>
+                  </div>
+                  
+                  <p style={{
+                    fontSize: '13px',
+                    color: '#6b7280',
+                    marginTop: '8px',
+                    margin: '8px 0 0 0',
+                    textAlign: 'center'
+                  }}>
+                    {travelRadius <= 30 ? '🏘️ Zona locală' : 
+                     travelRadius <= 80 ? '🏙️ Zona județeană' :
+                     travelRadius <= 150 ? '🌆 Zona regională' : '🗺️ Național'}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Images Section */}
+          {/* 4. Images Section - ULTIMA SECȚIUNE */}
           <div style={{
             backgroundColor: 'white',
             borderRadius: '16px',
@@ -921,7 +1125,7 @@ export default function Profile() {
                         width: '200px',
                         height: '150px',
                         objectFit: 'cover',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         border: '1px solid #e5e7eb'
                       }}
                     />
@@ -971,7 +1175,7 @@ export default function Profile() {
                     padding: '8px 16px',
                     backgroundColor: uploadingMain ? '#9ca3af' : '#2563eb',
                     color: 'white',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     cursor: uploadingMain ? 'not-allowed' : 'pointer',
                     fontWeight: '600',
                     fontSize: '14px',
@@ -1011,7 +1215,7 @@ export default function Profile() {
                           width: '100%',
                           height: '100px',
                           objectFit: 'cover',
-                          borderRadius: '8px',
+                          borderRadius: '12px',
                           border: '1px solid #e5e7eb'
                         }}
                       />
@@ -1068,7 +1272,7 @@ export default function Profile() {
                       padding: '8px 16px',
                       backgroundColor: uploadingGallery ? '#9ca3af' : '#16a34a',
                       color: 'white',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       cursor: uploadingGallery ? 'not-allowed' : 'pointer',
                       fontWeight: '600',
                       fontSize: '14px',
@@ -1081,259 +1285,82 @@ export default function Profile() {
               )}
             </div>
           </div>
+        </div>
 
-          {/* Business Information Form */}
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            padding: '32px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-          }}>
-            <div style={{
+        {/* Submit Button */}
+        <form onSubmit={handleSubmit}>
+          <button
+            type="submit"
+            disabled={loading || selectedCategories.length === 0 || !location.judet || !location.localitate}
+            style={{
+              marginTop: '32px',
+              width: '100%',
+              backgroundColor: (loading || selectedCategories.length === 0 || !location.judet || !location.localitate) ? '#9ca3af' : '#16a34a',
+              color: 'white',
+              padding: '16px 24px',
+              borderRadius: '12px',
+              fontWeight: '600',
+              border: 'none',
+              cursor: (loading || selectedCategories.length === 0 || !location.judet || !location.localitate) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              fontSize: '16px',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
-              marginBottom: '24px'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                backgroundColor: '#f0f9ff',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg width="20" height="20" fill="none" stroke="#0369a1" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                color: '#111827',
-                margin: 0
-              }}>
-                Informații Afacere
-              </h2>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr',
-                gap: '20px'
-              }}>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#374151',
-                    marginBottom: '8px'
-                  }}>
-                    Numele afacerii *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.business_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '12px',
-                      fontSize: '16px',
-                      transition: 'all 0.2s',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    placeholder="Ex: Studio Foto Magic Moments"
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#2563eb'
-                      e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#d1d5db'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#374151',
-                    marginBottom: '8px'
-                  }}>
-                    Descrierea serviciilor
-                  </label>
-                  <textarea
-                    rows="4"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '12px',
-                      fontSize: '16px',
-                      transition: 'all 0.2s',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      resize: 'vertical'
-                    }}
-                    placeholder="Descrie serviciile tale, experiența și ce te face special..."
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#2563eb'
-                      e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#d1d5db'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </div>
-
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+            onMouseOver={(e) => {
+              if (!loading && selectedCategories.length > 0 && location.judet && location.localitate) {
+                e.target.style.backgroundColor = '#15803d'
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!loading && selectedCategories.length > 0 && location.judet && location.localitate) {
+                e.target.style.backgroundColor = '#16a34a'
+              }
+            }}
+          >
+            {loading ? (
+              <>
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '20px'
-                }}>
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#374151',
-                      marginBottom: '8px'
-                    }}>
-                      Telefon *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '12px',
-                        fontSize: '16px',
-                        transition: 'all 0.2s',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                      placeholder="07xx xxx xxx"
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#2563eb'
-                        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#d1d5db'
-                        e.target.style.boxShadow = 'none'
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#374151',
-                      marginBottom: '8px'
-                    }}>
-                      Interval de preț
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.price_range}
-                      onChange={(e) => setFormData(prev => ({ ...prev, price_range: e.target.value }))}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '12px',
-                        fontSize: '16px',
-                        transition: 'all 0.2s',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                      placeholder="Ex: 500-2000 lei"
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#2563eb'
-                        e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#d1d5db'
-                        e.target.style.boxShadow = 'none'
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || selectedCategories.length === 0 || !location.judet || !location.localitate}
-                style={{
-                  marginTop: '32px',
-                  width: '100%',
-                  backgroundColor: (loading || selectedCategories.length === 0 || !location.judet || !location.localitate) ? '#9ca3af' : '#16a34a',
-                  color: 'white',
-                  padding: '16px 24px',
-                  borderRadius: '12px',
-                  fontWeight: '600',
-                  border: 'none',
-                  cursor: (loading || selectedCategories.length === 0 || !location.judet || !location.localitate) ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  fontSize: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseOver={(e) => {
-                  if (!loading && selectedCategories.length > 0 && location.judet && location.localitate) {
-                    e.target.style.backgroundColor = '#15803d'
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!loading && selectedCategories.length > 0 && location.judet && location.localitate) {
-                    e.target.style.backgroundColor = '#16a34a'
-                  }
-                }}
-              >
-                {loading ? (
-                  <>
-                    <div style={{
-                      width: '20px',
-                      height: '20px',
-                      border: '2px solid #ffffff',
-                      borderTop: '2px solid transparent',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }}></div>
-                    Se salvează...
-                  </>
-                ) : (
-                  '💾 Salvează Profilul'
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
+                  width: '20px',
+                  height: '20px',
+                  border: '2px solid #ffffff',
+                  borderTop: '2px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+                Se salvează...
+              </>
+            ) : (
+              '💾 Salvează Profilul'
+            )}
+          </button>
+        </form>
       </div>
 
       <style jsx>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        
+        /* Mobile-first responsive design */
+        .profile-title {
+          font-size: 2rem !important;
+        }
+        
+        /* Tablet breakpoint */
+        @media (min-width: 640px) {
+          .profile-title {
+            font-size: 2.5rem !important;
+          }
+        }
+        
+        /* Desktop breakpoint */
+        @media (min-width: 1024px) {
+          .profile-title {
+            font-size: 3rem !important;
+          }
         }
       `}</style>
     </div>

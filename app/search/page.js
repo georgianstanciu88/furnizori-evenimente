@@ -361,7 +361,7 @@ export default function Search() {
         padding: '32px 16px'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h1 style={{
+          <h1 className="search-title" style={{
             fontSize: '2.5rem',
             fontWeight: '800',
             color: '#111827',
@@ -656,7 +656,7 @@ export default function Search() {
                 backgroundColor: loading ? '#9ca3af' : '#2563eb',
                 color: 'white',
                 border: 'none',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 fontSize: '16px',
                 fontWeight: '600',
                 cursor: loading ? 'not-allowed' : 'pointer'
@@ -673,7 +673,7 @@ export default function Search() {
                   backgroundColor: '#6b7280',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   fontSize: '16px',
                   fontWeight: '600',
                   cursor: 'pointer'
@@ -702,6 +702,27 @@ export default function Search() {
           />
         )}
       </div>
+      
+      <style jsx>{`
+        /* Mobile-first responsive design */
+        .search-title {
+          font-size: 2rem !important;
+        }
+        
+        /* Tablet breakpoint */
+        @media (min-width: 640px) {
+          .search-title {
+            font-size: 2.5rem !important;
+          }
+        }
+        
+        /* Desktop breakpoint */
+        @media (min-width: 1024px) {
+          .search-title {
+            font-size: 3rem !important;
+          }
+        }
+      `}</style>
     </div>
   )  // ✅ Asigură-te că există această paranteză
 }    // ✅ Și această paranteză

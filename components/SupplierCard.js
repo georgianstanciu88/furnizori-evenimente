@@ -6,6 +6,22 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
   const [showGallery, setShowGallery] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
+  // Funcție pentru a extrage textul simplu din HTML
+  const extractPlainText = (html) => {
+    if (!html) return ''
+    
+    // Dacă conține HTML (tag-uri)
+    if (html.includes('<') && html.includes('>')) {
+      // Creăm un element temporar pentru a extrage textul
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = html
+      return tempDiv.textContent || tempDiv.innerText || ''
+    }
+    
+    // Dacă este deja text simplu
+    return html
+  }
+
   // ✅ VERIFICARE DE SIGURANȚĂ LA ÎNCEPUT:
   if (!supplier) {
     return (
@@ -267,7 +283,7 @@ export default function SupplierCard({ supplier, showAvailability, highlightAvai
             overflow: 'hidden',
             margin: '0 0 16px 0'
           }}>
-            {supplier?.description || 'Furnizor profesionist pentru evenimente. Contactează-ne pentru a afla mai multe detalii despre serviciile noastre și pentru a primi o ofertă personalizată pentru evenimentul tău.'}
+            {extractPlainText(supplier?.description) || 'Furnizor profesionist pentru evenimente. Contactează-ne pentru a afla mai multe detalii despre serviciile noastre și pentru a primi o ofertă personalizată pentru evenimentul tău.'}
           </div>
 
           {/* Details - OCUPĂ SPAȚIUL DISPONIBIL */}

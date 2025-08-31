@@ -147,7 +147,7 @@ export default function Home() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'white', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Hero Section */}
       <section style={{
         background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
@@ -347,7 +347,7 @@ export default function Home() {
                             backgroundColor: 'white',
                             color: '#2563eb',
                             border: '1px solid #2563eb',
-                            borderRadius: '8px',
+                            borderRadius: '12px',
                             fontWeight: '600',
                             fontSize: '14px',
                             transition: 'all 0.2s',
@@ -364,7 +364,11 @@ export default function Home() {
                           }}
                         >
                           Vezi toată categoria
-                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" 
+                          style={{
+      pointerEvents: 'none', // ✅ ACEASTĂ LINIE ELIMINĂ INTERACȚIUNEA CU SĂGEATA
+      transition: 'inherit'   // ✅ MOȘTENEȘTE TRANZIȚIA DE LA BUTON
+    }}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
@@ -434,7 +438,7 @@ export default function Home() {
                           backgroundColor: '#2563eb',
                           color: 'white',
                           padding: '12px 24px',
-                          borderRadius: '8px',
+                          borderRadius: '12px',
                           fontWeight: '600',
                           textDecoration: 'none',
                           fontSize: '14px',
@@ -458,7 +462,7 @@ export default function Home() {
                           backgroundColor: '#2563eb',
                           color: 'white',
                           padding: '12px 24px',
-                          borderRadius: '8px',
+                          borderRadius: '12px',
                           fontWeight: '600',
                           textDecoration: 'none',
                           fontSize: '14px',
@@ -552,7 +556,7 @@ export default function Home() {
                   backgroundColor: '#dc2626',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   cursor: 'pointer',
                   fontWeight: '600',
                   fontSize: '14px',
@@ -646,7 +650,7 @@ export default function Home() {
                     backgroundColor: '#2563eb',
                     color: 'white',
                     padding: '12px 24px',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     fontWeight: '600',
                     border: 'none',
                     cursor: 'pointer',
@@ -696,7 +700,7 @@ export default function Home() {
                       backgroundColor: '#2563eb',
                       color: 'white',
                       padding: '12px 24px',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       fontWeight: '600',
                       border: 'none',
                       cursor: 'pointer',
@@ -716,7 +720,7 @@ export default function Home() {
                         backgroundColor: 'white',
                         color: '#374151',
                         padding: '12px 24px',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         fontWeight: '600',
                         border: '1px solid #d1d5db',
                         cursor: 'pointer',

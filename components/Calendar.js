@@ -134,8 +134,8 @@ const isPastDate = (day) => {
         gap: '4px',
         marginBottom: '8px'
       }}>
-        {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map(day => (
-          <div key={day} style={{
+        {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, index) => (
+          <div key={`day-header-${index}`} style={{
             textAlign: 'center',
             fontSize: '14px',
             fontWeight: '600',
